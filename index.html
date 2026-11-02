@@ -945,6 +945,12 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 .ack-box { margin-top: 12px; }
 .ack-box .small-note { margin-bottom: 4px; }
 .ack-text { width: 100%; box-sizing: border-box; resize: vertical; font: 14.5px/1.45 var(--font); color: var(--ink); background: var(--paper-2); border: 1px solid var(--card-line); border-radius: 10px; padding: 8px 10px; }
+
+/* hesap panelinde Google satırı */
+.g-row { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 8px 0 2px; font: italic 13.5px var(--font); color: var(--ink-soft); }
+.g-row .g-dot { width: 7px; height: 7px; border-radius: 50%; background: #c9bfb7; flex: none; }
+.g-row .g-dot.on { background: #8fb59a; }
+.g-row .icon-btn .ic { width: 15px; height: 15px; }
 </style>
 </head>
 <body>
@@ -3216,7 +3222,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '02.11.2026 · 7';
+const APP_VERSION = '02.11.2026 · 8';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3426,6 +3432,7 @@ async function restoreBackup(file) {
       migrateState();
       await DB.set('state', S);
       if (pack.auth) { AUTH = pack.auth; await DB.set('auth', AUTH); }
+      if (typeof gMeta === 'function' && ON_WEB) { const gm = await gMeta(); if (gm.connected) { gm.dirty = true; gm.count = 0; await gMetaSave(); } }
       attUrls.clear(); applyTheme(); closeAllPanels();
       showLogin('Yedek yüklendi. Yedekteki şifrenle giriş yap.');
     } }]
@@ -3549,6 +3556,12 @@ async function drivePut(name, body, type, id = null, props = null) {
 }
 async function driveGet(id, bin = false) { const r = await gfetch(`${DRIVE}/${id}?alt=media`, {}, true); return bin ? new Uint8Array(await r.arrayBuffer()) : r.json(); }
 
+/* kaç kayıt var (boş bir defterin dolu olanın üstüne yazmasını önlemek için) */
+function stateCount(st) {
+  let n = 0;
+  for (const d of Object.values((st && st.days) || {})) for (const l of d.lines || []) if ((l.text || '').trim()) n++;
+  return n + ((st && st.notes) || []).length + ((st && st.docs) || []).length + ((st && st.tasks) || []).length;
+}
 /* --- durumun şifreli paketi --- */
 async function packState(meta) {
   const body = await seal(G.dek, te.encode(JSON.stringify(S)));
@@ -3558,11 +3571,13 @@ async function gPush(force = false) {
   const meta = await gMeta();
   if (!ON_WEB || !meta.connected || !G.dek || !gHasToken() || G.busy) return false;
   if (!meta.dirty && !force) return true;
+  const cnt = stateCount(S);
+  if (!force && cnt === 0 && (meta.count || 0) > 3) { console.warn('[zk] boş defter gönderilmedi'); return false; }
   G.busy = true;
   try {
     const pack = await packState(meta);
     meta.fileId = await drivePut(STATE_FILE, JSON.stringify(pack), 'application/json', meta.fileId || null, { at: String(pack.at) });
-    meta.at = pack.at; meta.dirty = false; await gMetaSave();
+    meta.at = pack.at; meta.dirty = false; meta.count = cnt; await gMetaSave();
     await gPushFiles();
     syncBadge();
     return true;
@@ -3609,12 +3624,23 @@ async function gPull() {
     if (meta.dirty) { await gPush(true); return; }   // burada yeni yazılanlar var: onlar kazanır
     const pack = await driveGet(f.id);
     const st = JSON.parse(td.decode(await unseal(G.dek, pack.box)));
+    const rc = stateCount(st), lc = stateCount(S);
+    if (G.askedShrink === true) return;   // soru ekranda, cevap bekleniyor
+    if (lc > 5 && rc < lc * 0.5 && !G.askedShrink) {
+      // Google'daki kayıt buradakinden çok daha az: sormadan yerine koyma
+      G.askedShrink = true;
+      confirmBox({ text: `Google'daki ajandada ${rc}, bu bilgisayardakinde ${lc} kayıt var. Hangisi kalsın?`, buttons: [
+        { label: 'Bu bilgisayardaki', primary: true, fn: async () => { meta.dirty = true; await gMetaSave(); G.askedShrink = false; await gPush(true); status('Bu bilgisayardaki ajanda Google\'a kaydedildi.'); } },
+        { label: 'Google\'daki', fn: async () => { meta.at = 0; await gMetaSave(); G.askedShrink = 'take'; await gPull(); } }] });
+      return;
+    }
+    if (G.askedShrink === 'take') G.askedShrink = false;
     S = Object.assign(defaultState(), st);
     for (const k of ['symbolDesc', 'settings', 'brush']) S[k] = Object.assign(defaultState()[k], S[k] || {});
     migrateState();
     await DB.set('state', S);
     if (pack.auth) { AUTH = pack.auth; await DB.set('auth', AUTH); }
-    meta.fileId = f.id; meta.at = at; meta.wrapP = pack.wrapP; meta.wrapR = pack.wrapR; meta.salt = pack.salt; await gMetaSave();
+    meta.fileId = f.id; meta.at = at; meta.count = rc; meta.wrapP = pack.wrapP; meta.wrapR = pack.wrapR; meta.salt = pack.salt; await gMetaSave();
     applyTheme(); renderAll(); syncBadge();
   } catch (e) { console.warn('[zk] alma', e); }
 }
@@ -3816,10 +3842,11 @@ function openConnect() {
     try {
       const r = await gConnect(pass, rec);
       m.close();
-      if (r.existing) {
+      if (r.existing && stateCount(S) === 0) { await gPull(); status('Google\'daki ajanda yüklendi.'); }
+      else if (r.existing) {
         confirmBox({ text: 'Google\'da daha önce kaydedilmiş bir ajanda var. Hangisi kalsın?', buttons: [
           { label: 'Bu bilgisayardaki', fn: async () => { G.meta.dirty = true; await gMetaSave(); await gPush(true); status('Bu bilgisayardaki ajanda Google\'a kaydedildi.'); } },
-          { label: 'Google\'daki', primary: true, fn: async () => { await gPull(); status('Google\'daki ajanda yüklendi.'); } }] });
+          { label: 'Google\'daki', primary: true, fn: async () => { G.askedShrink = 'take'; await gPull(); status('Google\'daki ajanda yüklendi.'); } }] });
       }
       else status('Google\'a bağlandı; ajanda şifreli olarak kaydedildi.');
       gCheckMail().then(() => gSendPendingAcks());
