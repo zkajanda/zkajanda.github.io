@@ -1446,7 +1446,7 @@ let S = defaultState();
 const UI = { day: todayKey(), view: 'daily', calMonth: null, glowId: null, today: todayKey() };
 
 let saveTimer = null;
-function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => DB.set('state', S), 250); }
+function save() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { DB.set('state', S); if (typeof gOnSave === 'function') gOnSave(); }, 250); }
 
 /* ---- Gün ve kategori erişimi ---- */
 function dayRec(k, create = false) {
@@ -2307,6 +2307,7 @@ function dailyNotices(force = false) {
   if (izin(tk)) items.push({ html: `${symIcon('home')} Bugün izin günün.` });
   if (izin(tm)) items.push({ html: `${symIcon('home')} Yarın izin günün.` });
   const hol = holidayOf(tm); if (hol) items.push({ html: `Yarın ${esc(hol.name)}.` });
+  if (typeof G !== 'undefined' && G.meta && G.meta.connected && S.settings.lastMailAt && Date.now() - S.settings.lastMailAt > 7 * 864e5) items.push({ html: 'Csk\'dan 7 gündür görev gelmedi.' });
   const hasData = Object.values(S.days).some(d => d.lines.some(l => l.text)) || S.notes.length || S.docs.length;
   const ref = S.settings.lastBackup || S.settings.firstUse || Date.now();
   const days = Math.floor((Date.now() - ref) / 864e5);
@@ -3054,7 +3055,7 @@ function askAckMessage(t, day) {
     const b = e.target.closest('[data-ak]'); if (!b) return;
     t.ack = b.dataset.ak === 'yes' ? { text: $('.ack-text', m.el).value.trim(), sent: false } : { skip: true };
     save(); m.close();
-    if (b.dataset.ak === 'yes') status(typeof sendAck === 'function' ? 'Mesaj gönderiliyor.' : 'Mesaj hazır; Google bağlantısı kurulunca gönderilecek.');
+    if (b.dataset.ak === 'yes') { if (typeof sendAck === 'function' && ON_WEB && G.meta && G.meta.connected) sendAck(t); else status('Mesaj hazır; Google bağlantısı kurulunca gönderilecek.'); }
   });
 }
 WINDOWS.gorevler = {
@@ -3215,7 +3216,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '02.11.2026 · 6';
+const APP_VERSION = '02.11.2026 · 7';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3239,6 +3240,7 @@ function hideGate() {
   setTimeout(() => { if (unlocked) flushLockedAlarms(); }, 400);
   setTimeout(() => { if (unlocked) { taskBadge(); flushLockedTasks(); } }, 7000);
   setTimeout(() => { if (unlocked) whenStatusFree(checkLeftovers); }, 2500);
+  if (typeof gOnUnlock === 'function') gOnUnlock();
 }
 const pwField = (cls, ph) => `<div class="pw-field"><input type="password" class="${cls}" placeholder="${ph}" autocomplete="off"><button type="button" class="icon-btn" data-eye title="Göster / gizle">${icon('eye')}</button></div>`;
 document.addEventListener('click', e => { const b = e.target.closest('[data-eye]'); if (!b) return; const i = b.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; });
@@ -3246,8 +3248,9 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-eye]
 /* Bu tarayıcıda kayıt yoksa: önce Sandık'tan yükleme seçeneği (yanlış tarayıcı / yanlış dosya adı durumunda veri kaybolmuş sanılmasın) */
 function showNoRecord() {
   const g = gate(`<h2>ZK</h2><p>Bu tarayıcıda kayıt bulunamadı.</p>
-    <div class="nr-btns"><button class="btn" data-nr="load">${icon('chest')} Sandık'tan yükle</button><button class="btn ghost" data-nr="new">Yeni ajanda kur</button></div>`);
+    <div class="nr-btns">${ON_WEB ? `<button class="btn" data-nr="google">Google'dan yükle</button>` : ''}<button class="btn ${ON_WEB ? 'ghost' : ''}" data-nr="load">${icon('chest')} Sandık'tan yükle</button><button class="btn ghost" data-nr="new">Yeni ajanda kur</button></div>`);
   g.querySelector('[data-nr="new"]').onclick = () => showSetup();
+  const gb = g.querySelector('[data-nr="google"]'); if (gb) gb.onclick = () => showGoogleRestore();
   g.querySelector('[data-nr="load"]').onclick = async () => { const f = await pickFile('.json,application/json'); if (f) restoreBackup(f); };
 }
 function showSetup() {
@@ -3322,6 +3325,7 @@ function showForgot() {
     const p1 = $('.p1', g).value; if (p1.length < 6) return err.textContent = 'Şifre en az 6 karakter olmalı.';
     if (p1 !== $('.p2', g).value) return err.textContent = 'Şifreler aynı değil.';
     AUTH.passHash = await hashSecret(p1, AUTH.salt); await DB.set('auth', AUTH);
+    if (typeof gRewrap === 'function') gRewrap({ pass: p1 });
     enterApp(); toast('Şifren yenilendi.');
   };
 }
@@ -3341,7 +3345,8 @@ function renderAccount(edit = false) {
   if (!edit) {
     p.innerHTML = `<div class="acc-row"><b>${esc(AUTH.user)}</b><button class="icon-btn" data-acc="edit" title="Düzenle">${icon('pencil')}</button></div>
       <div class="lock-btn"><button class="icon-btn" data-acc="lock" title="Kilitle (Ctrl+L)">${icon('lock')}</button><button class="icon-btn chest-btn" data-acc="chest" title="Sandık: yedek al / yedekten yükle">${icon('chest')}</button></div>
-      <div class="app-ver">Sürüm ${APP_VERSION}</div>`;
+      ${ON_WEB ? '<div class="g-row" id="gRow"></div>' : ''}<div class="app-ver">Sürüm ${APP_VERSION}</div>`;
+    if (ON_WEB) gMeta().then(() => syncBadge());
   } else {
     p.innerHTML = `<form class="acc-form">
       <input type="text" class="u" value="${esc(AUTH.user)}" placeholder="Kullanıcı adı">
@@ -3362,6 +3367,7 @@ function renderAccount(edit = false) {
       const rc = $('.rc', p).value;
       if (rc) { const bad = recProblem(rc, n1 || $('.cur', p).value, pin); if (bad) return err.textContent = bad; AUTH.recHash = await hashSecret('rec:' + normRec(rc), AUTH.salt); }
       if (pin) AUTH.pinHash = await hashSecret('pin:' + pin, AUTH.salt);
+      if ((n1 || rc) && typeof gRewrap === 'function') gRewrap({ pass: n1 || null, rec: rc || null });
       AUTH.user = u;
       await DB.set('auth', AUTH); save(); renderAccount(false); status(rc ? 'Hesap bilgilerin ve kurtarma kodun kaydedildi.' : 'Hesap bilgilerin kaydedildi.');
     };
@@ -3392,7 +3398,8 @@ function usedFileIds() {
   const ids = new Set(S.docs.map(d => d.fileId));
   for (const n of S.notes) for (const a of n.att || []) ids.add(a.fileId);
   for (const [, l] of allLines()) for (const a of l.att || []) ids.add(a.fileId);
-  return [...ids];
+  for (const t of S.tasks || []) for (const a of t.att || []) if (a.fileId) ids.add(a.fileId);
+  return [...ids].filter(Boolean);
 }
 async function makeBackup() {
   const files = {};
@@ -3437,6 +3444,408 @@ function openChest() {
     else { const f = await pickFile('.json,application/json'); if (f) { m.close(); restoreBackup(f); } }
   });
 }
+/* ===== Google: şifreli eşitleme ve Gmail'den görevler =====
+   Yalnızca internet adresinden (https) açılınca çalışır; masaüstündeki dosyadan açılınca hiçbir şey yapmaz.
+   - Yazılar Google Drive'ın uygulamaya özel gizli klasöründe (appDataFolder) ŞİFRELİ durur. Anahtar (DEK) rastgele üretilir;
+     şifreyle ve kurtarma koduyla ayrı ayrı kilitlenir. Google ya da başka biri içini okuyamaz.
+   - Bu cihazda anahtar, tarayıcının dışarı verilemeyen bir anahtarıyla saklanır; PIN ile açınca da eşitleme sürer.
+   - Gmail: zk.ajanda9 hesabına iletilen Sedat Bey e-postaları ve kullanıcının kendi adresinden gönderdikleri Görevler'e düşer.
+   - "İş alındı": kullanıcı onay kutusunda Gönder derse, aynı e-posta dizisine cevap olarak gider. */
+const G = {
+  clientId: '1076037977072-2h4cm6ugg7qbv8hajuopkth9b41f76tn.apps.googleusercontent.com',
+  scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
+  account: 'zk.ajanda9@gmail.com',
+  senders: ['c.sedat@vigowood.com'],          // görev gönderen (Csk)
+  own: ['zehra@vigowood.com'],                // kendi adreslerimiz: buradan gelen görev "elle eklenmiş" sayılır, cevap gitmez
+  token: null, exp: 0, client: null, dek: null, meta: null, waiters: [], lastAsk: 0, pushT: null, busy: false
+};
+const ON_WEB = location.protocol === 'https:';
+const STATE_FILE = 'zk-state.json';
+
+/* --- küçük yardımcılar --- */
+const te = new TextEncoder(), td = new TextDecoder();
+function b64(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s); const u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+const rnd = n => crypto.getRandomValues(new Uint8Array(n));
+async function kekOf(secret, salt) {
+  const base = await crypto.subtle.importKey('raw', te.encode(secret), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: unb64(salt), iterations: 210000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function seal(key, u8) { const iv = rnd(12); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, u8)); return { iv: b64(iv), ct: b64(ct) }; }
+async function unseal(key, box) { return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, key, unb64(box.ct))); }
+const dekKey = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+async function sealBin(key, u8) { const iv = rnd(12); const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, u8)); const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return out; }
+async function unsealBin(key, u8) { return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u8.subarray(0, 12) }, key, u8.subarray(12))); }
+
+/* --- yerel eşitleme bilgisi (eşitlenmez): {connected, fileId, at, dirty, files:{fileId:driveId}, salt, wrapP, wrapR} --- */
+async function gMeta() { if (!G.meta) G.meta = (await DB.get('gsync')) || { connected: false, files: {} }; return G.meta; }
+async function gMetaSave() { await DB.set('gsync', G.meta); }
+/* bu cihazda anahtar: dışarı verilemeyen yerel anahtarla kilitli */
+async function storeLocalDek(raw) {
+  let lk = await DB.get('glocal');
+  if (!lk || !lk.key) { lk = { key: await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']) }; }
+  lk.box = await seal(lk.key, raw); await DB.set('glocal', lk);
+}
+async function loadLocalDek() {
+  const lk = await DB.get('glocal'); if (!lk || !lk.key || !lk.box) return null;
+  try { return await dekKey(await unseal(lk.key, lk.box)); } catch { return null; }
+}
+
+/* --- Google girişi (izin jetonu) --- */
+function gLoadScript() {
+  return new Promise((res, rej) => {
+    if (window.google && google.accounts && google.accounts.oauth2) return res();
+    const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = () => res(); s.onerror = () => rej(new Error('Google girişi yüklenemedi'));
+    document.head.appendChild(s);
+  });
+}
+function gInitClient() {
+  if (G.client) return;
+  G.client = google.accounts.oauth2.initTokenClient({
+    client_id: G.clientId, scope: G.scope, login_hint: G.account,
+    callback: r => {
+      const w = G.waiters; G.waiters = [];
+      if (r && r.access_token) { G.token = r.access_token; G.exp = Date.now() + (Number(r.expires_in || 3600) - 120) * 1000; w.forEach(x => x.res(G.token)); }
+      else w.forEach(x => x.rej(new Error((r && r.error) || 'izin verilmedi')));
+    },
+    error_callback: e => { const w = G.waiters; G.waiters = []; w.forEach(x => x.rej(new Error((e && e.type) || 'pencere kapandı'))); }
+  });
+}
+const gHasToken = () => G.token && Date.now() < G.exp;
+/* Bir tıklamanın içinden çağrılmalı (Google penceresi açılır, izin daha önce verildiyse hemen kapanır) */
+async function gToken(first = false) {
+  if (!first && gHasToken()) return G.token;
+  await gLoadScript(); gInitClient();
+  return new Promise((res, rej) => { G.waiters.push({ res, rej }); G.client.requestAccessToken({ prompt: first ? 'consent' : '' }); });
+}
+async function gfetch(url, opt = {}, raw = false) {
+  if (!gHasToken()) throw new Error('jeton yok');
+  const r = await fetch(url, { ...opt, headers: { ...(opt.headers || {}), Authorization: 'Bearer ' + G.token } });
+  if (r.status === 401) { G.token = null; throw new Error('jeton süresi doldu'); }
+  if (!r.ok) throw new Error('Google ' + r.status + ' ' + (await r.text()).slice(0, 200));
+  return raw ? r : r.status === 204 ? null : r.json();
+}
+
+/* --- Drive (uygulamaya özel gizli klasör) --- */
+const DRIVE = 'https://www.googleapis.com/drive/v3/files', UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+async function driveFind(name) {
+  const q = encodeURIComponent(`name='${name}'`);
+  const r = await gfetch(`${DRIVE}?spaces=appDataFolder&q=${q}&fields=files(id,name,appProperties,modifiedTime)&pageSize=10`);
+  return (r.files || [])[0] || null;
+}
+async function drivePut(name, body, type, id = null, props = null) {
+  if (id) {
+    if (props) await gfetch(`${DRIVE}/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appProperties: props }) });
+    const r = await gfetch(`${UPLOAD}/${id}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': type }, body });
+    return r.id;
+  }
+  const meta = { name, parents: ['appDataFolder'], ...(props ? { appProperties: props } : {}) };
+  const fd = new FormData();
+  fd.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+  fd.append('file', new Blob([body], { type }));
+  const r = await gfetch(`${UPLOAD}?uploadType=multipart&fields=id`, { method: 'POST', body: fd });
+  return r.id;
+}
+async function driveGet(id, bin = false) { const r = await gfetch(`${DRIVE}/${id}?alt=media`, {}, true); return bin ? new Uint8Array(await r.arrayBuffer()) : r.json(); }
+
+/* --- durumun şifreli paketi --- */
+async function packState(meta) {
+  const body = await seal(G.dek, te.encode(JSON.stringify(S)));
+  return { app: 'zk-ajanda', v: 1, at: Date.now(), salt: meta.salt, wrapP: meta.wrapP, wrapR: meta.wrapR, auth: AUTH, box: body };
+}
+async function gPush(force = false) {
+  const meta = await gMeta();
+  if (!ON_WEB || !meta.connected || !G.dek || !gHasToken() || G.busy) return false;
+  if (!meta.dirty && !force) return true;
+  G.busy = true;
+  try {
+    const pack = await packState(meta);
+    meta.fileId = await drivePut(STATE_FILE, JSON.stringify(pack), 'application/json', meta.fileId || null, { at: String(pack.at) });
+    meta.at = pack.at; meta.dirty = false; await gMetaSave();
+    await gPushFiles();
+    syncBadge();
+    return true;
+  } catch (e) { console.warn('[zk] eşitleme', e); syncBadge(e); return false; }
+  finally { G.busy = false; }
+}
+/* belgeler: her dosya ayrı ve şifreli; yalnızca henüz yüklenmemiş olanlar */
+function allFileIds() {
+  const ids = new Set(usedFileIds());
+  for (const t of S.tasks || []) for (const a of t.att || []) if (a.fileId) ids.add(a.fileId);
+  return [...ids].filter(Boolean);
+}
+async function gPushFiles() {
+  const meta = await gMeta();
+  for (const id of allFileIds()) {
+    if (meta.files[id]) continue;
+    const r = await DB.getFile(id); if (!r || !r.blob) continue;
+    const head = te.encode(JSON.stringify({ name: r.name, type: r.type }) + '\n');
+    const data = new Uint8Array(await r.blob.arrayBuffer());
+    const all = new Uint8Array(head.length + data.length); all.set(head); all.set(data, head.length);
+    meta.files[id] = await drivePut('f-' + id, await sealBin(G.dek, all), 'application/octet-stream');
+    await gMetaSave();
+  }
+}
+/* bu cihazda olmayan belge, açılmak istenince Google'dan indirilir */
+async function gFetchFile(id) {
+  const meta = await gMeta(); if (!ON_WEB || !meta.connected || !G.dek || !gHasToken()) return null;
+  try {
+    let did = meta.files[id]; if (!did) { const f = await driveFind('f-' + id); if (!f) return null; did = meta.files[id] = f.id; await gMetaSave(); }
+    const all = await unsealBin(G.dek, await driveGet(did, true));
+    const nl = all.indexOf(10); const info = JSON.parse(td.decode(all.subarray(0, nl)));
+    const rec = { name: info.name, type: info.type, blob: new Blob([all.subarray(nl + 1)], { type: info.type || '' }) };
+    await DB.putFile(id, rec); return rec;
+  } catch (e) { console.warn('[zk] belge indirilemedi', e); return null; }
+}
+/* uzaktaki daha yeniyse ve burada gönderilmemiş değişiklik yoksa al */
+async function gPull() {
+  const meta = await gMeta();
+  if (!ON_WEB || !meta.connected || !G.dek || !gHasToken() || G.busy) return;
+  try {
+    const f = await driveFind(STATE_FILE); if (!f) return;
+    const at = Number((f.appProperties || {}).at || 0);
+    if (at <= (meta.at || 0)) return;
+    if (meta.dirty) { await gPush(true); return; }   // burada yeni yazılanlar var: onlar kazanır
+    const pack = await driveGet(f.id);
+    const st = JSON.parse(td.decode(await unseal(G.dek, pack.box)));
+    S = Object.assign(defaultState(), st);
+    for (const k of ['symbolDesc', 'settings', 'brush']) S[k] = Object.assign(defaultState()[k], S[k] || {});
+    migrateState();
+    await DB.set('state', S);
+    if (pack.auth) { AUTH = pack.auth; await DB.set('auth', AUTH); }
+    meta.fileId = f.id; meta.at = at; meta.wrapP = pack.wrapP; meta.wrapR = pack.wrapR; meta.salt = pack.salt; await gMetaSave();
+    applyTheme(); renderAll(); syncBadge();
+  } catch (e) { console.warn('[zk] alma', e); }
+}
+/* her kayıtta: değişti işaretle, birkaç saniye sonra gönder */
+function gOnSave() {
+  if (!ON_WEB || !G.meta || !G.meta.connected) return;
+  G.meta.dirty = true; DB.set('gsync', G.meta);
+  clearTimeout(G.pushT); G.pushT = setTimeout(() => gPush(), 6000);
+}
+
+/* --- Bağlanma: şifre ve kurtarma kodu ile anahtar kilitlenir --- */
+async function gConnect(pass, rec) {
+  const meta = await gMeta();
+  await gToken(true);
+  const remote = await driveFind(STATE_FILE);
+  if (remote) {
+    // Google'da zaten kayıt var: bu şifreyle aç
+    const pack = await driveGet(remote.id);
+    const raw = await unseal(await kekOf(pass, pack.salt), pack.wrapP).catch(() => null);
+    if (!raw) throw new Error('Google\'daki kayıt bu şifreyle açılamadı.');
+    G.dek = await dekKey(raw); await storeLocalDek(raw);
+    Object.assign(meta, { connected: true, fileId: remote.id, salt: pack.salt, wrapP: pack.wrapP, wrapR: pack.wrapR, at: 0, dirty: false, files: meta.files || {} });
+    await gMetaSave();
+    return { existing: true, at: Number((remote.appProperties || {}).at || 0) };
+  }
+  const raw = rnd(32), salt = b64(rnd(16));
+  G.dek = await dekKey(raw); await storeLocalDek(raw);
+  Object.assign(meta, { connected: true, salt, wrapP: await seal(await kekOf(pass, salt), raw), wrapR: await seal(await kekOf('rec:' + normRec(rec), salt), raw), fileId: null, at: 0, dirty: true, files: {} });
+  await gMetaSave();
+  if (!S.settings.lastMailAt) { S.settings.lastMailAt = Date.now(); }
+  await gPush(true);
+  return { existing: false };
+}
+/* şifre ya da kurtarma kodu değişince anahtarın kilidi yenilenir */
+async function gRewrap({ pass, rec }) {
+  const meta = await gMeta(); if (!meta.connected) return;
+  const lk = await DB.get('glocal'); if (!lk) return;
+  const raw = await unseal(lk.key, lk.box);
+  if (pass) meta.wrapP = await seal(await kekOf(pass, meta.salt), raw);
+  if (rec) meta.wrapR = await seal(await kekOf('rec:' + normRec(rec), meta.salt), raw);
+  meta.dirty = true; await gMetaSave(); gPush(true);
+}
+/* yeni cihaz: Google'dan yükle (şifre ya da kurtarma koduyla) */
+async function gRestore(secret, isRec) {
+  const remote = await driveFind(STATE_FILE); if (!remote) throw new Error('Google\'da kayıt bulunamadı.');
+  const pack = await driveGet(remote.id);
+  const raw = await unseal(await kekOf(isRec ? 'rec:' + normRec(secret) : secret, pack.salt), isRec ? pack.wrapR : pack.wrapP).catch(() => null);
+  if (!raw) throw new Error(isRec ? 'Kurtarma kodu doğru değil.' : 'Şifre doğru değil.');
+  G.dek = await dekKey(raw); await storeLocalDek(raw);
+  const st = JSON.parse(td.decode(await unseal(G.dek, pack.box)));
+  S = Object.assign(defaultState(), st);
+  for (const k of ['symbolDesc', 'settings', 'brush']) S[k] = Object.assign(defaultState()[k], S[k] || {});
+  migrateState(); await DB.set('state', S);
+  AUTH = pack.auth; await DB.set('auth', AUTH);
+  G.meta = { connected: true, fileId: remote.id, salt: pack.salt, wrapP: pack.wrapP, wrapR: pack.wrapR, at: Number((remote.appProperties || {}).at || pack.at || 0), dirty: false, files: {} };
+  await gMetaSave();
+}
+
+/* --- Gmail: görevler --- */
+const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
+const hdr = (m, n) => ((m.payload.headers || []).find(h => h.name.toLowerCase() === n.toLowerCase()) || {}).value || '';
+const addrOf = s => ((s.match(/<([^>]+)>/) || [])[1] || s).trim().toLowerCase();
+function partsOf(p, out = []) { if (!p) return out; out.push(p); for (const c of p.parts || []) partsOf(c, out); return out; }
+function textOf(m) {
+  const ps = partsOf(m.payload);
+  const plain = ps.find(p => p.mimeType === 'text/plain' && p.body && p.body.data && !p.filename);
+  if (plain) return td.decode(unb64(plain.body.data));
+  const html = ps.find(p => p.mimeType === 'text/html' && p.body && p.body.data && !p.filename);
+  if (html) { const d = document.createElement('div'); d.innerHTML = td.decode(unb64(html.body.data)).replace(/<(br|\/p|\/div)[^>]*>/gi, '\n'); return d.textContent; }
+  return m.snippet || '';
+}
+/* alıntılanan eski yazışmayı ve imzayı kırp: görevin yalnızca yeni kısmı kalsın */
+function cleanBody(t) {
+  const lines = t.replace(/\r/g, '').split('\n'); const out = [];
+  for (const l of lines) {
+    if (/^\s*>/.test(l)) continue;
+    if (/^(On .+wrote:|.+ tarihinde .+ şunu yazdı:|-----Original Message-----|-{2,}\s*Forwarded message|-{2,}\s*İletilen ileti)/i.test(l.trim())) break;
+    out.push(l);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+async function gCheckMail() {
+  const meta = await gMeta();
+  if (!ON_WEB || !meta.connected || !gHasToken()) return;
+  const from = [...G.senders, ...G.own].map(a => 'from:' + a).join(' OR ');
+  const q = encodeURIComponent(`(${from}) newer_than:30d`);
+  try {
+    const list = await gfetch(`${GMAIL}/messages?q=${q}&maxResults=25`);
+    const seen = new Set(S.mailSeen || []);
+    const fresh = (list.messages || []).filter(x => !seen.has(x.id)).reverse();
+    for (const x of fresh) {
+      const m = await gfetch(`${GMAIL}/messages/${x.id}?format=full`);
+      const fromA = addrOf(hdr(m, 'From')), own = G.own.includes(fromA);
+      let subject = hdr(m, 'Subject').replace(/^\s*((re|fwd?|fw|ynt|ilt|i̇lt)\s*:\s*)+/i, '').trim();
+      const body = cleanBody(textOf(m));
+      const att = [];
+      for (const p of partsOf(m.payload)) {
+        if (!p.filename || !p.body || !p.body.attachmentId) continue;
+        try {
+          const a = await gfetch(`${GMAIL}/messages/${x.id}/attachments/${p.body.attachmentId}`);
+          const fileId = uid(); const blob = new Blob([unb64(a.data)], { type: p.mimeType || '' });
+          await DB.putFile(fileId, { blob, name: p.filename, type: p.mimeType || '' });
+          att.push({ name: p.filename, fileId, type: p.mimeType || '', size: blob.size });
+        } catch (e) { console.warn('[zk] ek alınamadı', e); }
+      }
+      const due = dueFromText(subject + '\n' + body);
+      receiveTask({
+        title: subject || '', body, src: 'mail', att, due,
+        manual: own, mail: { id: m.id, threadId: m.threadId, msgId: hdr(m, 'Message-ID'), from: fromA, subject: hdr(m, 'Subject') },
+        at: Number(m.internalDate) || Date.now()
+      });
+      seen.add(x.id);
+      S.mailSeen = [...seen].slice(-600);
+      if (!own) S.settings.lastMailAt = Date.now();
+      save();
+    }
+  } catch (e) { console.warn('[zk] gmail', e); }
+}
+/* metinde "05.11" ya da "5 Kasım" gibi bir tarih varsa görevin günü olarak önerilir */
+function dueFromText(t) {
+  const y = new Date().getFullYear();
+  let m = t.match(/\b(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\b/);
+  if (m) { const d = +m[1], mo = +m[2], yy = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : y; if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) return toKey(new Date(yy, mo - 1, d)); }
+  const mn = MONTHS.map(x => fold(x).toLowerCase());
+  m = fold(t).toLowerCase().match(new RegExp(`\\b(\\d{1,2})\\s+(${mn.join('|')})`));
+  if (m) return toKey(new Date(y, mn.indexOf(m[2]), +m[1]));
+  return null;
+}
+/* "İş alındı": aynı diziye cevap */
+function mimeWord(s) { return /^[\x20-\x7e]*$/.test(s) ? s : '=?UTF-8?B?' + b64(te.encode(s)) + '?='; }
+async function gSendAck(t) {
+  if (!t.ack || t.ack.sent || t.ack.skip || !t.mail) return false;
+  const subj = /^re:/i.test(t.mail.subject) ? t.mail.subject : 'Re: ' + t.mail.subject;
+  const lines = [`To: ${t.mail.from}`, `Subject: ${mimeWord(subj)}`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'];
+  if (t.mail.msgId) lines.push(`In-Reply-To: ${t.mail.msgId}`, `References: ${t.mail.msgId}`);
+  const raw = lines.join('\r\n') + '\r\n\r\n' + b64(te.encode(t.ack.text)).replace(/.{76}/g, '$&\r\n');
+  await gfetch(`${GMAIL}/messages/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64(te.encode(raw)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), threadId: t.mail.threadId }) });
+  t.ack.sent = Date.now(); save();
+  return true;
+}
+async function gSendPendingAcks() {
+  if (!gHasToken()) return;
+  for (const t of S.tasks || []) if (t.ack && !t.ack.sent && !t.ack.skip && t.mail) { try { await gSendAck(t); } catch (e) { console.warn('[zk] cevap', e); } }
+}
+/* onay kutusundaki Gönder: hemen dener, olmazsa bağlantı gelince */
+function sendAck(t) { if (gHasToken()) gSendAck(t).then(ok => ok && status('Mesaj gönderildi.')).catch(() => status('Mesaj şimdi gönderilemedi; bağlantı gelince gönderilecek.')); }
+
+/* --- düzen: açılışta, her 5 dakikada --- */
+async function gTick() {
+  const meta = await gMeta(); if (!ON_WEB || !meta.connected || !unlocked) return;
+  if (!G.dek) G.dek = await loadLocalDek();
+  if (!gHasToken()) { syncBadge(); return; }
+  await gPull(); await gPush(); await gCheckMail(); await gSendPendingAcks(); syncBadge();
+}
+/* jeton bitince: kullanıcının bir sonraki tıklamasında sessizce yenilenir (10 dakikada en fazla bir kez dener) */
+document.addEventListener('click', () => {
+  if (!ON_WEB || !G.meta || !G.meta.connected || !unlocked || gHasToken() || Date.now() - G.lastAsk < 600000) return;
+  G.lastAsk = Date.now();
+  gToken().then(() => gTick()).catch(() => syncBadge());
+}, true);
+async function gOnUnlock() {
+  const meta = await gMeta(); if (!ON_WEB || !meta.connected) return;
+  G.dek = G.dek || await loadLocalDek();
+  if (!gHasToken()) { G.lastAsk = Date.now(); try { await gToken(); } catch { syncBadge(); return; } }
+  gTick();
+}
+setInterval(() => gTick(), 5 * 60000);
+
+/* hesap panelinde Google satırı */
+function syncBadge(err) {
+  const el = $('#gRow'); if (!el || !G.meta) return;
+  el.innerHTML = gRowHTML(err);
+}
+function gRowHTML(err) {
+  const meta = G.meta || {};
+  if (!meta.connected) return `<button class="btn small ghost" data-g="connect">Google'a bağlan</button>`;
+  const when = meta.at ? new Date(meta.at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—';
+  const ok = gHasToken() && !err;
+  return `<span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-g]'); if (!b) return;
+  if (b.dataset.g === 'now') { try { await gToken(); await gTick(); status('Eşitlendi.'); } catch { status('Google bağlantısı kurulamadı.'); } return; }
+  if (b.dataset.g === 'connect') openConnect();
+});
+function openConnect() {
+  $('#accountPop').classList.add('hidden');
+  const m = makeModal({ title: 'Google', size: 'sm', color: '#c3cbb8',
+    body: `<div class="form-grid g-form">${pwField('gp', 'Ajanda şifresi')}${pwField('gr', 'Kurtarma kodu')}<div class="err" style="color:var(--wine)"></div></div>`,
+    foot: `<button class="btn ghost" data-gc="no">Vazgeç</button><button class="btn" data-gc="yes">Bağlan</button>` });
+  m.foot.style.justifyContent = 'center';
+  m.foot.addEventListener('click', async e => {
+    const b = e.target.closest('[data-gc]'); if (!b) return;
+    if (b.dataset.gc === 'no') return m.close();
+    const pass = $('.gp', m.el).value, rec = $('.gr', m.el).value, err = $('.err', m.el);
+    if (await hashSecret(pass, AUTH.salt) !== AUTH.passHash) return err.textContent = 'Şifre doğru değil.';
+    if (await hashSecret('rec:' + normRec(rec), AUTH.salt) !== AUTH.recHash) return err.textContent = 'Kurtarma kodu doğru değil.';
+    b.disabled = true; b.textContent = 'Bağlanıyor…';
+    try {
+      const r = await gConnect(pass, rec);
+      m.close();
+      if (r.existing) {
+        confirmBox({ text: 'Google\'da daha önce kaydedilmiş bir ajanda var. Hangisi kalsın?', buttons: [
+          { label: 'Bu bilgisayardaki', fn: async () => { G.meta.dirty = true; await gMetaSave(); await gPush(true); status('Bu bilgisayardaki ajanda Google\'a kaydedildi.'); } },
+          { label: 'Google\'daki', primary: true, fn: async () => { await gPull(); status('Google\'daki ajanda yüklendi.'); } }] });
+      }
+      else status('Google\'a bağlandı; ajanda şifreli olarak kaydedildi.');
+      gCheckMail().then(() => gSendPendingAcks());
+    } catch (x) { b.disabled = false; b.textContent = 'Bağlan'; err.textContent = x.message || 'Bağlanılamadı.'; }
+  });
+}
+/* kayıt bulunamadı ekranı: Google'dan yükle */
+async function showGoogleRestore() {
+  const g = gate(`<h2>ZK</h2><p>Google'daki ajandayı yükle.</p>
+    <form>${pwField('p', 'Ajanda şifresi')}<div class="err"></div><button class="btn">Yükle</button></form>
+    <button class="link" data-grec>Şifremi unuttum, kurtarma koduyla yükle</button><button class="link" data-back>Geri dön</button>`);
+  let useRec = false;
+  g.querySelector('[data-back]').onclick = () => showNoRecord();
+  g.querySelector('[data-grec]').onclick = () => { useRec = true; $('.p', g).placeholder = 'Kurtarma kodu'; $('.p', g).value = ''; $('.p', g).focus(); };
+  $('form', g).onsubmit = async e => {
+    e.preventDefault(); const err = $('.err', g); const btn = $('.btn', g); err.textContent = ''; btn.disabled = true; btn.textContent = 'Yükleniyor…';
+    try {
+      await gToken(true);
+      await gRestore($('.p', g).value, useRec);
+      if (useRec) showForgot(); else showLogin('Google\'dan yüklendi. Şifrenle aç.');
+    } catch (x) { err.textContent = x.message || 'Yüklenemedi.'; btn.disabled = false; btn.textContent = 'Yükle'; }
+  };
+}
+
+/* bu cihazda olmayan belge Google'dan gelir */
+{ const _get = DB.getFile; DB.getFile = async id => (await _get(id)) || (ON_WEB ? await gFetchFile(id) : null); }
 /* ===== Başlangıç ===== */
 function shellHTML() {
   const menu = [
