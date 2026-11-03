@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr">
+<html lang="tr" writingsuggestions="false">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -845,7 +845,7 @@ input, textarea, select { font-family: var(--font); }
 .tk-clip { color: #9b5b5d; }
 .tk-clip .ic, .tk-src .ic { width: 16px; height: 16px; }
 .tk-row.open .tk-ttl { white-space: normal; }
-.tk-body { padding: 10px 2px 4px 88px; }
+.tk-body { --pl: 88px; padding: 10px 2px 4px var(--pl); }
 .tk-full { margin: 0 0 10px; line-height: 1.5; }
 .tk-att { display: inline-flex; align-items: center; gap: 6px; font: 14px var(--font); color: #7a4a4c; border: 1px solid var(--card-line); border-radius: 8px; padding: 3px 10px; margin: 0 6px 10px 0; background: var(--paper-2); cursor: pointer; }
 .tk-att .ic { width: 14px; height: 14px; }
@@ -865,8 +865,8 @@ input, textarea, select { font-family: var(--font); }
 .tk-row.done .tk-who { color: inherit; border-color: var(--rule); }
 .tk-row.done .tk-clip, .tk-row.done .tk-src { color: inherit; }
 .tk-stamp { font-size: 12.5px; font-style: italic; }
-.side .tk-body { padding-left: 2px; }
-@media (max-width: 620px) { .tk-body { padding-left: 2px; } .tk-date { min-width: 0; } }
+.side .tk-body { --pl: 2px; }
+@media (max-width: 620px) { .tk-body { --pl: 2px; } .tk-date { min-width: 0; } }
 .status-line .st-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #9b5b5d; margin-right: 8px; vertical-align: 1px; }
 .side .tk-stamp { display: none; }
 .side .tk-date { min-width: 0; font-size: 13px; }
@@ -924,9 +924,9 @@ input, textarea, select { font-family: var(--font); }
 
 /* ---------- Tatil: kayan yıldızlar (sol üstten sağ alta) ---------- */
 .shooting { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.shooting span { position: absolute; width: 120px; height: 2px; border-radius: 2px; opacity: 0; transform: rotate(28deg);
+.shooting span { position: absolute; width: 130px; height: 2.2px; border-radius: 2px; opacity: 0; transform: rotate(28deg);
   background: linear-gradient(90deg, transparent, var(--sc)); animation: shoot 16s linear infinite; }
-.shooting span::after { content: ""; position: absolute; right: -6px; top: -6px; width: 13px; height: 13px; background: var(--sc);
+.shooting span::after { content: ""; position: absolute; right: -7px; top: -7px; width: 15px; height: 15px; background: var(--sc);
   clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
 @keyframes shoot { 0% { opacity: 0; transform: rotate(28deg) translateX(-60px); } 4% { opacity: 1; } 14% { opacity: 1; } 20%, 100% { opacity: 0; transform: rotate(28deg) translateX(200px); } }
 @media (prefers-reduced-motion: reduce) { .shooting span { animation: none; opacity: .7; } }
@@ -934,7 +934,7 @@ input, textarea, select { font-family: var(--font); }
 body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 
 /* ---------- Görevler: Görev ekle ---------- */
-.tk-add-bar { display: flex; justify-content: flex-end; margin: -2px 0 6px; }
+.tk-add-bar { display: flex; justify-content: center; margin: -2px 0 8px; }
 .tk-add { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; cursor: pointer; font: italic 14px var(--font); color: var(--ink-soft); padding: 3px 8px; border-radius: 8px; }
 .tk-add:hover { color: var(--ink); background: var(--paper-2); }
 .tk-add .ic { width: 15px; height: 15px; color: #9b5b5d; }
@@ -953,6 +953,32 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 .g-row .g-dot { width: 7px; height: 7px; border-radius: 50%; background: #c9bfb7; flex: none; }
 .g-row .g-dot.on { background: #8fb59a; }
 .g-row .icon-btn .ic { width: 15px; height: 15px; }
+.g-row { flex-direction: column; gap: 6px; }
+.g-row .g-main, .g-row .g-sub { display: flex; align-items: center; gap: 8px; justify-content: center; }
+.g-row .g-sub { font-size: 12.5px; }
+
+.tk-acts { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.tk-acts .tk-ok { margin-left: 0; }
+.tk-row.dis { color: var(--ink-faint); opacity: .6; }
+.tk-row.dis.open { opacity: 1; color: var(--ink); }
+.tk-row.dis .tk-who { color: inherit; border-color: var(--rule); }
+
+/* Görev değil / Onayla: aynı boy, satırın iki ucunda simetrik */
+.tk-acts { margin-left: calc(2px - var(--pl, 88px)); margin-right: 0; padding: 0 2px; }
+.tk-acts .btn { min-width: 118px; justify-content: center; text-align: center; }
+.tk-acts .tk-no { background: #c77f80; color: #fff; border: 0; }
+.tk-acts .tk-no:hover { filter: brightness(.95); }
+.ap-line { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; text-align: left; }
+.ap-line .ap-text { width: 100%; box-sizing: border-box; font: 15px var(--font); padding: 7px 10px; border-radius: 10px; border: 1px solid var(--card-line); background: var(--paper-2); color: var(--ink); }
+
+/* görevden gelen satırda küçük ferman: tıklayınca asıl e-posta */
+.t-ferman { border: 0; background: none; padding: 0; margin: 0 2px 0 0; cursor: pointer; display: inline-flex; align-self: center; opacity: .85; }
+.t-ferman:hover { opacity: 1; }
+.t-ferman .ferman-mini { width: 17px; height: 18px; }
+.tm-meta { display: flex; gap: 10px; align-items: center; color: var(--ink-faint); font-size: 14px; margin-bottom: 8px; }
+.tm-body { white-space: normal; }
+.tk-reply { color: #9b5b5d; font-size: 15px; margin-right: -4px; }
+.tk-orig { font: italic 13.5px var(--font); color: var(--ink-faint); margin: -2px 0 8px; }
 </style>
 </head>
 <body>
@@ -1524,7 +1550,7 @@ function lineHTML(k, l, cat) {
   if (l.alarm && l.alarm.on && l.alarm.date === today) cls.push('alarm-today');
   return `<div class="${cls.join(' ')}" data-id="${l.id || ''}" data-cat="${cat.id}" style="--cat-ink:${ink}">
     <button class="${bulletCls}" data-act="bullet" ${tip ? `data-tip="${esc(tip)}"` : ''} aria-label="Madde işareti"></button>
-    <span class="line-icons">${icons.join('')}</span>
+    <span class="line-icons">${l.taskId && (S.tasks || []).some(t => t.id === l.taskId) ? `<button class="t-ferman" data-act="task" title="Asıl e-posta">${fermanSvg('ic ferman-mini')}</button>` : ''}${icons.join('')}</span>
     <div class="line-text" contenteditable="${CE}" spellcheck="false" data-t="${esc(l.text)}" ${l.color ? `style="--hl:${hlColor(l.color)}"` : ''}>${esc(l.text)}</div>
     <div class="tools">
       <button class="t t-done" data-act="done" title="Bitti">${icon('check')}</button>
@@ -1811,7 +1837,12 @@ document.addEventListener('click', e => {
     return;
   }
   const l = ensureLine(ctx);
-  if (act === 'done') { l.done = !l.done; save(); renderMain(); softRefreshWindows(); status(l.done ? 'Bitti olarak işaretlendi.' : 'Bitti işareti kaldırıldı.'); }
+  if (act === 'done') {
+    l.done = !l.done;
+    if (l.done && pinnedAlarms.includes(l)) { pinnedAlarms = pinnedAlarms.filter(x => x !== l); if (l.alarm) l.alarm.snooze = null; }
+    save(); renderMain(); softRefreshWindows(); status(l.done ? 'Bitti olarak işaretlendi.' : 'Bitti işareti kaldırıldı.');
+  }
+  else if (act === 'task') openTaskMail(l.taskId);
   else if (act === 'move') openMovePop(b, ctx.k, l);
   else if (act === 'pal') openPalPop(b, ctx.k, l);
   else if (act === 'spark') openSymbolPicker(ctx.k, l);
@@ -2145,7 +2176,7 @@ function bindCalendar(root, rerender, onGo) {
 }
 
 /* ===== Görünümler ===== */
-const VIEWS = ['single', 'daily', 'timeline', 'split2', 'split3'];
+const VIEWS = ['daily', 'timeline', 'split2', 'split3'];
 const VIEW_NAMES = { single: 'Tek Sayfa', daily: 'Açık Ajanda', timeline: 'Zaman Tüneli', split2: 'Ajanda + Takvim', split3: '3\'e Bölünmüş Masa' };
 function setView(v) {
   UI.view = v; UI.calMonth = UI.day.slice(0, 7);
@@ -2242,9 +2273,13 @@ function pinAlarm(l) { if (!pinnedAlarms.includes(l)) pinnedAlarms.push(l); show
 function showPinned() {
   const l = pinnedAlarms[0]; if (!l) return;
   const a = l.alarm;
+  // yalnızca ×: bildirim kalkar, alarm kapanmaz; iş bitmediyse 1 saat sonra yeniden hatırlatır
   status(`${icon('bell')} <b>${pad(a.hour)}:00</b> — ${esc(a.note || l.text || 'Alarm')}${pinnedAlarms.length > 1 ? ` <i>(+${pinnedAlarms.length - 1})</i>` : ''}`, [
-    { label: 'Göster', fn: () => { goDay(UI.today); setTimeout(showPinned, 50); } },
-    { label: 'Kapat', fn: () => { pinnedAlarms.shift(); if (l.alarm && l.alarm.on) { l.alarm.on = false; l.alarm.closedOn = l.alarm.date; save(); renderMain(); } if (pinnedAlarms.length) showPinned(); else status('Alarm kapatıldı.'); } }
+    { icon: 'close', label: 'Kaldır', fn: () => {
+      pinnedAlarms.shift();
+      if (l.alarm && l.alarm.on) { l.alarm.snooze = Date.now() + 3600000; save(); }
+      if (pinnedAlarms.length) showPinned(); else $('#statusLine').classList.remove('show');
+    } }
   ], false, 'alarm', true);
 }
 function gateAlarmNote() {
@@ -2257,7 +2292,15 @@ function checkAlarms(startup = false) {
   const now = new Date(); const tk = todayKey(); const h = now.getHours();
   let changed = false; const upcoming = [];
   for (const [k, l] of allLines()) {
-    const a = l.alarm; if (!a || !a.on || a.fired) continue;
+    const a = l.alarm; if (!a || !a.on) continue;
+    // saat başı yeniden hatırlatma: iş bitmediyse ve gün aynıysa
+    if (a.fired) {
+      if (a.snooze && Date.now() >= a.snooze && a.date === tk && !l.done) {
+        a.snooze = null; changed = true; ting();
+        if (!unlocked) { lockedAlarms.push(l); gateAlarmNote(); } else pinAlarm(l);
+      }
+      continue;
+    }
     if (a.date < tk) continue;
     if (a.date === tk && a.hour <= h) {
       a.fired = true; changed = true; chime();
@@ -2474,10 +2517,12 @@ document.addEventListener('click', e => {
 document.addEventListener('dblclick', e => { const r = e.target.closest('[data-ws-day]'); if (r && !e.target.closest('[data-ws]')) goDay(r.dataset.wsDay, r.dataset.wsId); });
 
 /* ===== Tatil: kurdelede günün adı, sayfada sol üstten sağ alta kayan pastel yıldızlar (arifede yalnızca ad) ===== */
+/* yedi yıldız, yedi renk: gri, sarı, şeftali, gül, adaçayı, krem-somon, puslu kırmızı */
+const SHOOT_COLORS = ['#bcb3b8', '#e3c48a', '#e8b9a0', '#d9a0a4', '#a9b89c', '#eec6ae', '#c77f80'];
 function shootingHTML(side = 'l') {
-  const S5 = side === 'l' ? [[8, 40, 0, 0], [46, 52, 3.2, 1], [22, 66, 6.8, 2], [62, 70, 9.6, 3], [34, 80, 12.4, 1]]
-    : [[30, 44, 1.6, 2], [6, 58, 5, 3], [52, 62, 8.2, 0], [20, 76, 11, 1], [64, 82, 14, 2]];
-  return `<div class="shooting" aria-hidden="true">${S5.map(([x, y, d, c]) => `<span style="left:${x}%;top:${y}%;--sc:${STAR_COLORS[c]};animation-delay:${d}s"></span>`).join('')}</div>`;
+  const P = side === 'l' ? [[8, 40, 0], [46, 50, 2.3], [22, 62, 4.6], [62, 68, 6.9], [34, 78, 9.2], [10, 86, 11.5], [54, 88, 13.8]]
+    : [[30, 42, 1.2], [6, 54, 3.5], [52, 60, 5.8], [20, 72, 8.1], [64, 80, 10.4], [38, 88, 12.7], [4, 92, 15]];
+  return `<div class="shooting" aria-hidden="true">${P.map(([x, y, d], i) => `<span style="left:${x}%;top:${y}%;--sc:${SHOOT_COLORS[(i + (side === 'l' ? 0 : 3)) % 7]};animation-delay:${d}s"></span>`).join('')}</div>`;
 }
 /* ===== Pencere sistemi ===== */
 const openModals = [];   // {el, name, close}
@@ -2999,7 +3044,7 @@ WINDOWS.araclar = {
    Görev: { id, at (geliş zamanı), from ('Csk'), title, body, src ('mail' | 'wa'), att: [{name, fileId, type, size}], due (gün), hour, done }
    Ret yok, tek düğme "Onayla": iş seçilen kategoriyle seçilen günün sayfasına yazılır; saat seçildiyse alarm kurulur; ek varsa ataşla satıra ve Belgeler'e gider.
    Onaylanan görev listeden silinmez, silik gri kalır. */
-const tasksPending = () => (S.tasks || []).filter(t => !t.done).length;
+const tasksPending = () => (S.tasks || []).filter(t => !t.done && !t.dismissed).length;
 function taskBadge() {
   const b = $('.bm-ferman .bm-badge'); if (!b) return;
   const n = tasksPending(); b.textContent = n; b.hidden = !n;
@@ -3028,33 +3073,45 @@ const taskAddHTML = m => m.adding
   ? `<div class="tk-add-box"><textarea class="tk-add-text" rows="4" placeholder="Mesajı yapıştırın ya da yazın"></textarea><div class="tk-add-btns"><button class="btn small ghost" data-tkadd="cancel">Vazgeç</button><button class="btn small" data-tkadd="ok">Ekle</button></div></div>`
   : `<div class="tk-add-bar"><button class="tk-add" data-tkadd="open">${icon('plus')}Görev ekle</button></div>`;
 function approveTask(t, catId, day, hour) {
-  const l = newLine(catId, { text: t.title, taskId: t.id });
+  const l = newLine(catId, { text: t.lineText || t.title, taskId: t.id });
   dayRec(day, true).lines.push(l);
-  if (hour != null) setAlarm(day, l, { date: day, hour, on: true, fired: false, note: '' });
+  if (hour != null) setAlarm(day, l, { date: day, hour, on: true, fired: false, note: l.text });
   for (const a of t.att || []) if (a.fileId) S.docs.push({ id: uid(), fileId: a.fileId, name: a.name, type: a.type || '', size: a.size || 0, date: day, catId, line: { date: day, id: l.id }, createdAt: Date.now() });
-  t.done = { at: Date.now(), day, catId, lineId: l.id };
+  t.done = { at: Date.now(), day, catId, lineId: l.id }; delete t.dismissed;
   save(); renderMain(); taskBadge(); refreshWindows();
   status(`Görev ${fmtDot(day)} gününe yazıldı.`, { label: 'O güne git', fn: () => goDay(day) });
+}
+/* Ajandadaki ferman: görevin asıl e-postası (tamamı ve ekleri) */
+function openTaskMail(id) {
+  const t = (S.tasks || []).find(x => x.id === id); if (!t) return;
+  const m = makeModal({ title: t.title || 'Görev', size: 'sm', color: '#c99a9b',
+    body: `<div class="tm-meta"><span class="tk-who">${esc(t.from || 'Csk')}</span><span>${fmtDot(toKey(new Date(t.at)))}</span></div>
+      <p class="tk-full tm-body">${esc((t.body || '').trim() || t.title).replace(/\n/g, '<br>')}</p>
+      ${(t.att || []).map((a, i) => `<button class="tk-att" data-tmatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}` });
+  m.body.addEventListener('click', e => { const a = e.target.closest('[data-tmatt]'); if (!a) return; const f = t.att[Number(a.dataset.tmatt)]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); });
 }
 /* Onay: önce seçilen gün/kategori/saat bir kez daha gösterilir (yanlışlıkla onaylanmasın).
    E-postayla gelen görevde onaydan sonra ayrı bir kutuda gönderene gidecek "İş alındı" mesajı açılır; düzeltilip gönderilir ya da gönderilmez. */
 function askApproveTask(t, p, after) {
   const cat = S.categories.find(c => c.id === p.cat) || catOn(p.day, p.cat);
   const m = makeModal({ title: 'Onay', size: 'sm', color: '#c99a9b',
-    body: `<div class="confirm-text"><b>${fmtDot(p.day)} · ${esc(cat.name)}${p.hour != null ? ` · ${pad(p.hour)}:00` : ''}</b><br>Görev bu güne yazılacak.</div>`,
+    body: `<div class="confirm-text"><b>${fmtDot(p.day)} · ${esc(cat.name)}${p.hour != null ? ` · ${pad(p.hour)}:00` : ''}</b></div>
+      <label class="ap-line"><span class="small-note">Ajandaya yazılacak</span><input type="text" class="ap-text" maxlength="160" value="${esc(t.lineText || t.title)}"></label>`,
     foot: `<button class="btn ghost" data-ap="no">Vazgeç</button><button class="btn" data-ap="yes">Onayla</button>` });
   m.foot.style.justifyContent = 'center';
   m.foot.addEventListener('click', e => {
     const b = e.target.closest('[data-ap]'); if (!b) return;
+    if (b.dataset.ap === 'yes') { const v = $('.ap-text', m.el).value.trim(); if (!v) return $('.ap-text', m.el).focus(); t.lineText = v; }
     m.close();
     if (b.dataset.ap !== 'yes') return;
     approveTask(t, p.cat, p.day, p.hour); after && after();
     if (t.src === 'mail' && !t.manual) askAckMessage(t, p.day);
   });
-  $('[data-ap="yes"]', m.el).focus();
+  const inp = $('.ap-text', m.el); inp.focus(); inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('[data-ap="yes"]', m.el).click(); } });
 }
 function askAckMessage(t, day) {
-  const text = `Merhaba,\nİş alındı: ${t.title}\nPlanlanan gün: ${fmtDot(day)}`;
+  const text = `Merhaba,\nİş alındı: ${t.lineText || t.title}\nPlanlanan gün: ${fmtDot(day)}`;
   const m = makeModal({ title: `${t.fromName || 'Sedat Bey'}'e mesaj`, size: 'sm', color: '#c99a9b',
     body: `<textarea class="ack-text" rows="5">${esc(text)}</textarea>`,
     foot: `<button class="btn ghost" data-ak="no">Gönderme</button><button class="btn" data-ak="yes">Gönder</button>` });
@@ -3077,15 +3134,16 @@ WINDOWS.gorevler = {
       const p = m.pick[t.id] || (m.pick[t.id] = { cat: null, day: t.due && t.due >= UI.today ? t.due : UI.today, hour: t.hour ?? null, cal: false });
       const open = !t.done && m.open === t.id;
       const hours = `<option value="">—</option>` + Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${p.hour === h ? 'selected' : ''}>${pad(h)}:00</option>`).join('');
-      return `<div class="tk-row ${t.done ? 'done' : ''} ${open ? 'open' : ''}" data-tk="${t.id}"${t.done ? ` title="onaylandı ${fmtDot(toKey(new Date(t.done.at)))}"` : ''}>
-        <div class="tk-top"><span class="tk-date">${fmtDot(toKey(new Date(t.at)))}</span><span class="tk-who">${esc(t.from || 'Csk')}</span><span class="tk-ttl">${esc(t.title)}</span>
+      return `<div class="tk-row ${t.done ? 'done' : ''} ${t.dismissed && !t.done ? 'dis' : ''} ${open ? 'open' : ''}" data-tk="${t.id}"${t.done ? ` title="onaylandı ${fmtDot(toKey(new Date(t.done.at)))}"` : ''}>
+        <div class="tk-top"><span class="tk-date">${fmtDot(toKey(new Date(t.at)))}</span><span class="tk-who">${esc(t.from || 'Csk')}</span>${t.replyTo ? `<span class="tk-reply" title="Yanıt">↩</span>` : ''}<span class="tk-ttl">${esc(t.title)}</span>
           ${(t.att || []).length ? `<span class="tk-clip" title="${esc(t.att.map(a => a.name).join(', '))}">${icon('clip')}</span>` : ''}<span class="tk-src" title="${t.src === 'wa' ? 'WhatsApp' : 'E-posta'}">${icon(t.src === 'wa' ? 'chat' : 'mail')}</span>
-          ${t.done ? `<span class="tk-stamp">onaylandı ${fmtDot(toKey(new Date(t.done.at)))}</span>` : ''}</div>
-        ${open ? `<div class="tk-body">${(() => { let b = (t.body || '').trim(); if (b.startsWith(t.title.replace(/…$/, ''))) b = t.title.endsWith('…') ? b : b.slice(t.title.length).trim(); return b && b !== t.title ? `<p class="tk-full">${esc(b).replace(/\n/g, '<br>')}</p>` : ''; })()}
+          ${t.done ? `<span class="tk-stamp">onaylandı ${fmtDot(toKey(new Date(t.done.at)))}</span>` : t.dismissed ? `<span class="tk-stamp">görev değil</span>` : ''}</div>
+        ${open ? `<div class="tk-body">${(() => { const o = t.replyTo && S.tasks.find(x => x.id === t.replyTo); return o ? `<div class="tk-orig">↩ Ajandaya yazılan: ${esc(o.lineText || o.title)}</div>` : ''; })()}${(() => { let b = (t.body || '').trim(); if (b.startsWith(t.title.replace(/…$/, ''))) b = t.title.endsWith('…') ? b : b.slice(t.title.length).trim(); return b && b !== t.title ? `<p class="tk-full">${esc(b).replace(/\n/g, '<br>')}</p>` : ''; })()}
           ${(t.att || []).map((a, i) => `<button class="tk-att" data-tkatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}
           <div class="tk-chips">${S.categories.map(c => `<button class="tk-chip ${p.cat === c.id ? 'on' : ''}" data-tkcat="${c.id}" style="--c:${c.color}">${esc(c.name)}</button>`).join('')}</div>
-          <div class="tk-when"><span class="small-note">Gün</span><button class="tk-day" data-tkday>${fmtDot(p.day)}</button><span class="small-note">Saat</span><select class="tk-hour">${hours}</select><button class="btn small tk-ok" data-tkok>Onayla</button></div>
-          ${p.cal ? '<div class="tk-cal mc"></div>' : ''}</div>` : ''}</div>`;
+          <div class="tk-when"><span class="small-note">Gün</span><button class="tk-day" data-tkday>${fmtDot(p.day)}</button><span class="small-note">Saat</span><select class="tk-hour">${hours}</select></div>
+          ${p.cal ? '<div class="tk-cal mc"></div>' : ''}
+          <div class="tk-acts">${t.dismissed ? '<span></span>' : '<button class="btn small ghost tk-no" data-tkno>Görev değil</button>'}<button class="btn small tk-ok" data-tkok>Onayla</button></div></div>` : ''}</div>`;
     }).join('')}</div>`;
     const ta = $('.tk-add-text', m.body); if (ta) { ta.value = draft; ta.focus(); }
     const oc = $('.tk-cal', m.body);
@@ -3113,6 +3171,10 @@ WINDOWS.gorevler = {
       const c = e.target.closest('[data-tkcat]'); if (c) { p.cat = c.dataset.tkcat; m.render(); return; }
       if (e.target.closest('[data-tkday]')) { p.cal = !p.cal; m.render(); return; }
       const a = e.target.closest('[data-tkatt]'); if (a) { const f = t.att[Number(a.dataset.tkatt)]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); return; }
+      if (e.target.closest('[data-tkno]')) {
+        const snap = takeSnap(); t.dismissed = Date.now(); m.open = null;
+        save(); taskBadge(); m.render(); undoStatus('Görev değil olarak ayrıldı.', snap); return;
+      }
       if (e.target.closest('[data-tkok]')) {
         if (!p.cat) { const ch = $('.tk-chips', row); ch.classList.remove('need'); void ch.offsetWidth; ch.classList.add('need'); return; }
         askApproveTask(t, p, () => { m.open = null; m.render(); }); return;
@@ -3224,7 +3286,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '02.11.2026 · 10';
+const APP_VERSION = '03.11.2026 · 3';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3536,6 +3598,36 @@ async function gfetch(url, opt = {}, raw = false) {
   return raw ? r : r.status === 204 ? null : r.json();
 }
 
+/* --- Şirket e-postası: yalnızca Sedat Bey'in e-postalarını okumak ve "İş alındı" cevabı için ayrı bir bağlantı.
+   Ajandanın kaydı hiçbir zaman şirket hesabına yazılmaz. --- */
+const CO = { account: 'zehra@vigowood.com', scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send', token: null, exp: 0, client: null, waiters: [], lastAsk: 0 };
+const coOn = () => !!(S.settings && S.settings.coMail);
+const coHas = () => CO.token && Date.now() < CO.exp;
+async function coToken(first = false) {
+  if (!first && coHas()) return CO.token;
+  await gLoadScript();
+  if (!CO.client) CO.client = google.accounts.oauth2.initTokenClient({
+    client_id: G.clientId, scope: CO.scope, login_hint: CO.account,
+    callback: r => { const w = CO.waiters; CO.waiters = []; if (r && r.access_token) { CO.token = r.access_token; CO.exp = Date.now() + (Number(r.expires_in || 3600) - 120) * 1000; w.forEach(x => x.res(CO.token)); } else w.forEach(x => x.rej(new Error((r && r.error) || 'izin verilmedi'))); },
+    error_callback: e => { const w = CO.waiters; CO.waiters = []; w.forEach(x => x.rej(new Error((e && e.type) || 'pencere kapandı'))); }
+  });
+  return new Promise((res, rej) => { CO.waiters.push({ res, rej }); CO.client.requestAccessToken({ prompt: first ? 'consent' : '' }); });
+}
+async function cofetch(url, opt = {}) {
+  if (!coHas()) throw new Error('şirket jetonu yok');
+  const r = await fetch(url, { ...opt, headers: { ...(opt.headers || {}), Authorization: 'Bearer ' + CO.token } });
+  if (r.status === 401) { CO.token = null; throw new Error('şirket jetonu süresi doldu'); }
+  if (!r.ok) throw new Error('Google ' + r.status + ' ' + (await r.text()).slice(0, 200));
+  return r.status === 204 ? null : r.json();
+}
+async function coConnect() {
+  await coToken(true);
+  const prof = await cofetch('https://gmail.googleapis.com/gmail/v1/users/me/profile');
+  if ((prof.emailAddress || '').toLowerCase() !== CO.account) { CO.token = null; throw new Error(`Yanlış hesap seçildi (${prof.emailAddress}). Lütfen ${CO.account} ile girin.`); }
+  S.settings.coMail = CO.account; save();
+  await gCheckMail(); await gSendPendingAcks();
+}
+
 /* --- Drive (uygulamaya özel gizli klasör) --- */
 const DRIVE = 'https://www.googleapis.com/drive/v3/files', UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 async function driveFind(name) {
@@ -3762,15 +3854,24 @@ function tidyOldMailTasks() {
 }
 async function gCheckMail() {
   const meta = await gMeta();
-  if (!ON_WEB || !meta.connected || !gHasToken()) return;
-  const from = [...G.senders, ...G.own].map(a => 'from:' + a).join(' OR ');
-  const q = encodeURIComponent(`(${from}) newer_than:30d`);
+  if (!ON_WEB || !meta.connected) return;
+  // şirket bağlıysa Sedat Bey'in e-postaları doğrudan şirket kutusundan; ajanda hesabından yalnızca kendi ilettikleriniz
+  if (coOn() && coHas()) await readBox('co', cofetch, G.senders);
+  if (gHasToken()) await readBox('zk', gfetch, coOn() ? G.own : [...G.senders, ...G.own]);
+}
+async function readBox(acct, fx, senders) {
+  const q = encodeURIComponent(`(${senders.map(a => 'from:' + a).join(' OR ')}) newer_than:7d`);
   try {
-    const list = await gfetch(`${GMAIL}/messages?q=${q}&maxResults=25`);
-    const seen = new Set(S.mailSeen || []);
-    const fresh = (list.messages || []).filter(x => !seen.has(x.id)).reverse();
+    const list = await fx(`${GMAIL}/messages?q=${q}&maxResults=30`);
+    const seen = new Set(S.mailSeen || []), ids = new Set(S.mailMsgIds || []);
+    const key = id => acct === 'zk' ? id : acct + ':' + id;
+    const fresh = (list.messages || []).filter(x => !seen.has(key(x.id))).reverse();
     for (const x of fresh) {
-      const m = await gfetch(`${GMAIL}/messages/${x.id}?format=full`);
+      const m = await fx(`${GMAIL}/messages/${x.id}?format=full`);
+      seen.add(key(x.id)); S.mailSeen = [...seen].slice(-800);
+      const msgId = hdr(m, 'Message-ID');
+      if (msgId && ids.has(msgId)) { save(); continue; }   // aynı e-posta iki yoldan geldiyse bir kez
+      if (msgId) { ids.add(msgId); S.mailMsgIds = [...ids].slice(-800); }
       const fromA = addrOf(hdr(m, 'From')), own = G.own.includes(fromA);
       let subject = hdr(m, 'Subject').replace(/^\s*((re|fwd?|fw|ynt|ilt|i̇lt)\s*:\s*)+/i, '').trim();
       const body = cleanBody(textOf(m));
@@ -3778,24 +3879,23 @@ async function gCheckMail() {
       for (const p of partsOf(m.payload)) {
         if (!p.filename || !p.body || !p.body.attachmentId || isInline(p)) continue;
         try {
-          const a = await gfetch(`${GMAIL}/messages/${x.id}/attachments/${p.body.attachmentId}`);
-          const fileId = uid(); const blob = new Blob([unb64(a.data)], { type: p.mimeType || '' });
+          const ad = await fx(`${GMAIL}/messages/${x.id}/attachments/${p.body.attachmentId}`);
+          const fileId = uid(); const blob = new Blob([unb64(ad.data)], { type: p.mimeType || '' });
           await DB.putFile(fileId, { blob, name: p.filename, type: p.mimeType || '' });
           att.push({ name: p.filename, fileId, type: p.mimeType || '', size: blob.size });
         } catch (e) { console.warn('[zk] ek alınamadı', e); }
       }
-      const due = dueFromText(subject + '\n' + body);
+      // aynı yazışmadaki önceki görev (ör. "İş alındı" mesajına verilen cevap)
+      const prev = !own && (S.tasks || []).find(o => o.mail && o.mail.acct === acct && o.mail.threadId === m.threadId && (o.done || o.ack));
       receiveTask({
-        title: subject || '', body, src: 'mail', att, due,
-        manual: own, tidy: 1, mail: { id: m.id, threadId: m.threadId, msgId: hdr(m, 'Message-ID'), from: fromA, subject: hdr(m, 'Subject') },
+        title: subject || '', body, src: 'mail', att, due: dueFromText(subject + '\n' + body), replyTo: prev ? prev.id : null,
+        manual: own, tidy: 1, mail: { acct, id: m.id, threadId: m.threadId, msgId, from: fromA, subject: hdr(m, 'Subject') },
         at: Number(m.internalDate) || Date.now()
       });
-      seen.add(x.id);
-      S.mailSeen = [...seen].slice(-600);
       if (!own) S.settings.lastMailAt = Date.now();
       save();
     }
-  } catch (e) { console.warn('[zk] gmail', e); }
+  } catch (e) { console.warn('[zk] gmail ' + acct, e); }
 }
 /* metinde "05.11" ya da "5 Kasım" gibi bir tarih varsa görevin günü olarak önerilir */
 function dueFromText(t) {
@@ -3815,30 +3915,32 @@ async function gSendAck(t) {
   const lines = [`To: ${t.mail.from}`, `Subject: ${mimeWord(subj)}`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'];
   if (t.mail.msgId) lines.push(`In-Reply-To: ${t.mail.msgId}`, `References: ${t.mail.msgId}`);
   const raw = lines.join('\r\n') + '\r\n\r\n' + b64(te.encode(t.ack.text)).replace(/.{76}/g, '$&\r\n');
-  await gfetch(`${GMAIL}/messages/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64(te.encode(raw)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), threadId: t.mail.threadId }) });
+  const fx = t.mail.acct === 'co' ? cofetch : gfetch;
+  if (t.mail.acct === 'co' ? !coHas() : !gHasToken()) return false;
+  await fx(`${GMAIL}/messages/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64(te.encode(raw)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''), threadId: t.mail.threadId }) });
   t.ack.sent = Date.now(); save();
   return true;
 }
 async function gSendPendingAcks() {
-  if (!gHasToken()) return;
+  if (!gHasToken() && !coHas()) return;
   for (const t of S.tasks || []) if (t.ack && !t.ack.sent && !t.ack.skip && t.mail) { try { await gSendAck(t); } catch (e) { console.warn('[zk] cevap', e); } }
 }
 /* onay kutusundaki Gönder: hemen dener, olmazsa bağlantı gelince */
-function sendAck(t) { if (gHasToken()) gSendAck(t).then(ok => ok && status('Mesaj gönderildi.')).catch(() => status('Mesaj şimdi gönderilemedi; bağlantı gelince gönderilecek.')); }
+function sendAck(t) { if (t.mail && (t.mail.acct === 'co' ? coHas() : gHasToken())) gSendAck(t).then(ok => ok && status('Mesaj gönderildi.')).catch(() => status('Mesaj şimdi gönderilemedi; bağlantı gelince gönderilecek.')); }
 
 /* --- düzen: açılışta, her 5 dakikada --- */
 async function gTick() {
   const meta = await gMeta(); if (!ON_WEB || !meta.connected || !unlocked) return;
   tidyOldMailTasks();
   if (!G.dek) G.dek = await loadLocalDek();
-  if (!gHasToken()) { syncBadge(); return; }
-  await gPull(); await gPush(); await gCheckMail(); await gSendPendingAcks(); syncBadge();
+  if (gHasToken()) { await gPull(); await gPush(); }
+  await gCheckMail(); await gSendPendingAcks(); syncBadge();
 }
 /* jeton bitince: kullanıcının bir sonraki tıklamasında sessizce yenilenir (10 dakikada en fazla bir kez dener) */
-document.addEventListener('click', () => {
-  if (!ON_WEB || !G.meta || !G.meta.connected || !unlocked || gHasToken() || Date.now() - G.lastAsk < 600000) return;
-  G.lastAsk = Date.now();
-  gToken().then(() => gTick()).catch(() => syncBadge());
+document.addEventListener('click', e => {
+  if (!ON_WEB || !G.meta || !G.meta.connected || !unlocked || e.target.closest('[data-g]')) return;
+  if (!gHasToken()) { if (Date.now() - G.lastAsk < 600000) return; G.lastAsk = Date.now(); gToken().then(() => gTick()).catch(() => syncBadge()); return; }
+  if (coOn() && !coHas() && Date.now() - CO.lastAsk > 600000) { CO.lastAsk = Date.now(); coToken().then(() => gTick()).catch(() => syncBadge()); }
 }, true);
 async function gOnUnlock() {
   const meta = await gMeta(); if (!ON_WEB || !meta.connected) return;
@@ -3858,11 +3960,23 @@ function gRowHTML(err) {
   if (!meta.connected) return `<button class="btn small ghost" data-g="connect">Google'a bağlan</button>`;
   const when = meta.at ? new Date(meta.at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—';
   const ok = gHasToken() && !err;
-  return `<span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button>`;
+  const co = coOn() ? `<div class="g-sub"><span class="g-dot ${coHas() ? 'on' : ''}"></span><span>Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}</span></div>`
+    : `<div class="g-sub"><button class="btn small ghost" data-g="co">Şirket e-postasını bağla</button></div>`;
+  return `<div class="g-main"><span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button></div>${co}`;
 }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-g]'); if (!b) return;
-  if (b.dataset.g === 'now') { try { await gToken(); await gTick(); status('Eşitlendi.'); } catch { status('Google bağlantısı kurulamadı.'); } return; }
+  if (b.dataset.g === 'now') {
+    try { await gToken(); } catch { status('Google bağlantısı kurulamadı.'); return; }
+    if (coOn() && !coHas()) { try { await coToken(); } catch { } }   // aynı tıklamada ikinci pencere açılamazsa bir sonraki tıklamada
+    await gTick(); status('Eşitlendi.'); return;
+  }
+  if (b.dataset.g === 'co') {
+    $('#accountPop').classList.add('hidden');
+    try { await coConnect(); status('Şirket e-postası bağlandı; Sedat Bey\'in e-postaları doğrudan gelecek.'); }
+    catch (x) { status(/admin|engel|blocked|denied|access_denied/i.test(x.message) ? 'Şirket hesabı bu bağlantıya izin vermedi.' : (x.message || 'Şirket e-postası bağlanamadı.')); }
+    return;
+  }
   if (b.dataset.g === 'connect') openConnect();
 });
 function openConnect() {
