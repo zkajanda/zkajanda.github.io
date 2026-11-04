@@ -1020,6 +1020,9 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 .mc-f { display: inline-flex; align-items: center; gap: 4px; font-size: 13.5px; border: 1px solid var(--card-line); border-radius: 8px; padding: 2px 4px 2px 9px; background: var(--paper-2); }
 .mc-f button { display: flex; border: 0; background: none; cursor: pointer; padding: 2px; color: var(--ink-faint); }
 .mc-f .ic { width: 12px; height: 12px; }
+.rep-att { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rep-f { border: 1px solid var(--card-line); background: var(--card); border-radius: 8px; padding: 2px 10px; font: italic 13.5px var(--font); color: #5f8a6a; cursor: pointer; }
+.rep-f:hover { background: var(--paper-2); }
 </style>
 </head>
 <body>
@@ -3204,9 +3207,9 @@ function openTaskMail(id) {
   const m = makeModal({ title: t.title || 'Görev', size: 'sm', color: '#c99a9b',
     body: `<div class="tm-meta"><span class="tk-who">${esc(t.from || 'Csk')}</span><span>${fmtDot(toKey(new Date(t.at)))}</span></div>
       <div class="tm-text">${tmText(t, false)}</div>
-      ${(r => r ? `<div class="tk-repbox tm">${icon('replied')}<div>${esc(r.text.trim()).replace(/\n/g, '<br>')}</div></div>` : '')(taskReply(t))}
+      ${(r => r ? `<div class="tk-repbox tm">${icon('replied')}<div>${esc(r.text.trim()).replace(/\n/g, '<br>')}${repAttHTML(r)}</div></div>` : '')(taskReply(t))}
       ${(t.att || []).map((a, i) => `<button class="tk-att" data-tmatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}` });
-  m.body.addEventListener('click', e => { const r = e.target.closest('[data-tmraw]'); if (r) { $('.tm-text', m.body).innerHTML = tmText(t, r.dataset.tmraw === '1'); return; } const a = e.target.closest('[data-tmatt]'); if (!a) return; const f = t.att[Number(a.dataset.tmatt)]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); });
+  m.body.addEventListener('click', e => { const ra = e.target.closest('[data-repatt]'); if (ra) { openRepAtt(taskReply(t), Number(ra.dataset.repatt)); return; } const r = e.target.closest('[data-tmraw]'); if (r) { $('.tm-text', m.body).innerHTML = tmText(t, r.dataset.tmraw === '1'); return; } const a = e.target.closest('[data-tmatt]'); if (!a) return; const f = t.att[Number(a.dataset.tmatt)]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); });
 }
 /* Onay: önce seçilen gün/kategori/saat bir kez daha gösterilir (yanlışlıkla onaylanmasın).
    E-postayla gelen görevde onaydan sonra ayrı bir kutuda gönderene gidecek "İş alındı" mesajı açılır; düzeltilip gönderilir ya da gönderilmez. */
@@ -3310,7 +3313,10 @@ function afterLineDone(k, l) {
   if (t && t.src === 'mail' && !t.manual && t.mail && !t.doneMsg) askDoneMessage(t, k, l);
 }
 /* görev durumu: kırmızı yuvarlak görev değil, yeşil yuvarlak onaylandı; tik oklu simge Sedat Bey'e yanıt verildi */
-const taskReply = t => { const p = [t.reply, t.ack && t.ack.sent && t.ack.text ? { text: t.ack.text, at: t.ack.sent } : null, t.doneMsg && t.doneMsg.sent ? { text: t.doneMsg.text, at: t.doneMsg.sent } : null].filter(Boolean); return p.length ? { text: p.map(x => x.text.trim()).join('\n\n'), at: p[p.length - 1].at } : null; };
+const taskReply = t => { const p = [t.reply, t.ack && t.ack.sent && t.ack.text ? { text: t.ack.text, at: t.ack.sent } : null, t.doneMsg && t.doneMsg.sent ? { text: t.doneMsg.text, at: t.doneMsg.sent } : null].filter(Boolean); return p.length ? { text: p.map(x => x.text.trim()).join('\n\n'), at: p[p.length - 1].at, att: [...((t.ack && t.ack.sent && t.ack.att) || []), ...((t.doneMsg && t.doneMsg.sent && t.doneMsg.att) || [])] } : null; };
+/* gönderilen ekler: yalnızca yanıt açılınca, ataşsız ad olarak */
+const repAttHTML = r => (r.att || []).length ? `<div class="rep-att">${r.att.map((a, i) => `<button class="rep-f" data-repatt="${i}">${esc(a.name)}</button>`).join('')}</div>` : '';
+function openRepAtt(r, i) { const f = r && r.att && r.att[i]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); }
 const shortDay = ts => { const d = new Date(ts); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`; };
 /* kısa metin; … ile e-postanın tamamı (yerine) açılır */
 function taskBodyHTML(t, full) {
@@ -3334,7 +3340,7 @@ WINDOWS.gorevler = {
       return `<div class="tk-row ${t.done ? 'done' : ''} ${t.dismissed && !t.done ? 'dis' : ''} ${open ? 'open' : ''}" data-tk="${t.id}">
         <div class="tk-top"><span class="tk-date">${fmtDot(toKey(new Date(t.at)))}</span><span class="tk-who">${esc(t.from || 'Csk')}</span>${t.replyTo ? `<span class="tk-reply">↩</span>` : ''}<span class="tk-ttl">${esc(t.title)}</span>
           ${t.done ? `<span class="tk-okd">${shortDay(t.done.at)}</span>` : ''}${rep ? `<button class="tk-rep" data-tkrep>${icon('replied')}</button>` : ''}${(t.att || []).length ? `<span class="tk-clip" title="${esc(t.att.map(a => a.name).join(', '))}">${icon('clip')}</span>` : ''}<span class="tk-src">${icon(t.src === 'wa' ? 'chat' : 'mail')}</span><span class="tk-dot ${t.done ? 'g' : t.dismissed ? 'r' : ''}"></span></div>
-        ${rep && m.rep === t.id ? `<div class="tk-repbox">${esc(rep.text.trim()).replace(/\n/g, '<br>')}</div>` : ''}
+        ${rep && m.rep === t.id ? `<div class="tk-repbox">${esc(rep.text.trim()).replace(/\n/g, '<br>')}${repAttHTML(rep)}</div>` : ''}
         ${open ? `<div class="tk-body">${(() => { const o = t.replyTo && S.tasks.find(x => x.id === t.replyTo); return o ? `<div class="tk-orig">↩ Ajandaya yazılan: ${esc(o.lineText || o.title)}</div>` : ''; })()}${taskBodyHTML(t, m.raw === t.id)}
           ${(t.att || []).map((a, i) => `<button class="tk-att" data-tkatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}
           <div class="tk-chips">${S.categories.map(c => `<button class="tk-chip ${p.cat === c.id ? 'on' : ''}" data-tkcat="${c.id}" style="--c:${c.color}">${esc(c.name)}</button>`).join('')}</div>
@@ -3363,6 +3369,7 @@ WINDOWS.gorevler = {
       }
       const row = e.target.closest('[data-tk]'); if (!row) return;
       const t = S.tasks.find(x => x.id === row.dataset.tk); if (!t) return;
+      const ra = e.target.closest('[data-repatt]'); if (ra) { openRepAtt(taskReply(t), Number(ra.dataset.repatt)); return; }
       if (e.target.closest('[data-tkrep]')) { m.rep = m.rep === t.id ? null : t.id; m.render(); return; }
       if (t.done) return;
       const p = m.pick[t.id];
@@ -3486,7 +3493,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '04.11.2026';
+const APP_VERSION = '04.11.2026 · 2';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
