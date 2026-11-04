@@ -1023,6 +1023,12 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 .rep-att { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .rep-f { border: 1px solid var(--card-line); background: var(--card); border-radius: 8px; padding: 2px 10px; font: italic 13.5px var(--font); color: #5f8a6a; cursor: pointer; }
 .rep-f:hover { background: var(--paper-2); }
+.rep-att { align-items: center; }
+.rep-clip { display: flex; border: 0; background: none; cursor: pointer; padding: 3px; border-radius: 8px; color: #7f9474; }
+.rep-clip:hover { background: var(--paper-2); }
+.rep-clip .ic { width: 17px; height: 17px; }
+.rep-names { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.rep-names[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -3315,7 +3321,8 @@ function afterLineDone(k, l) {
 /* görev durumu: kırmızı yuvarlak görev değil, yeşil yuvarlak onaylandı; tik oklu simge Sedat Bey'e yanıt verildi */
 const taskReply = t => { const p = [t.reply, t.ack && t.ack.sent && t.ack.text ? { text: t.ack.text, at: t.ack.sent } : null, t.doneMsg && t.doneMsg.sent ? { text: t.doneMsg.text, at: t.doneMsg.sent } : null].filter(Boolean); return p.length ? { text: p.map(x => x.text.trim()).join('\n\n'), at: p[p.length - 1].at, att: [...((t.ack && t.ack.sent && t.ack.att) || []), ...((t.doneMsg && t.doneMsg.sent && t.doneMsg.att) || [])] } : null; };
 /* gönderilen ekler: yalnızca yanıt açılınca, ataşsız ad olarak */
-const repAttHTML = r => (r.att || []).length ? `<div class="rep-att">${r.att.map((a, i) => `<button class="rep-f" data-repatt="${i}">${esc(a.name)}</button>`).join('')}</div>` : '';
+const repAttHTML = r => (r.att || []).length ? `<div class="rep-att"><button class="rep-clip" data-repclip>${icon('clip')}</button><span class="rep-names" hidden>${r.att.map((a, i) => `<button class="rep-f" data-repatt="${i}">${esc(a.name)}</button>`).join('')}</span></div>` : '';
+document.addEventListener('click', e => { const c = e.target.closest('[data-repclip]'); if (!c) return; e.stopPropagation(); const n = c.nextElementSibling; n.hidden = !n.hidden; }, true);
 function openRepAtt(r, i) { const f = r && r.att && r.att[i]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); }
 const shortDay = ts => { const d = new Date(ts); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`; };
 /* kısa metin; … ile e-postanın tamamı (yerine) açılır */
@@ -3493,7 +3500,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '04.11.2026 · 2';
+const APP_VERSION = '04.11.2026 · 4';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4074,9 +4081,25 @@ async function refetchRaw() {
     catch (e) { console.warn('[zk] yeniden okuma', e); }
   }
 }
+/* aynı e-posta birden fazla görev olduysa (iki okuma aynı anda çalıştığında) fazlası silinir:
+   onaylanmış olan kalır, yoksa "görev değil" denmiş olan, yoksa ilki */
+function dedupeTasks() {
+  const rank = t => t.done ? 0 : t.dismissed ? 1 : 2, groups = new Map();
+  for (const t of S.tasks || []) { if (!t.mail) continue; const k = t.mail.msgId || (t.mail.acct + ':' + t.mail.id); if (!k || k.endsWith(':undefined')) continue; (groups.get(k) || groups.set(k, []).get(k)).push(t); }
+  const drop = new Set();
+  for (const g of groups.values()) { if (g.length < 2) continue; g.sort((a, b) => rank(a) - rank(b) || a.at - b.at); g.slice(1).forEach(t => { if (!t.done) drop.add(t); }); }
+  if (!drop.size) return 0;
+  S.tasks = S.tasks.filter(t => !drop.has(t)); save(); taskBadge(); refreshWindows();
+  return drop.size;
+}
 async function gCheckMail() {
   const meta = await gMeta();
   if (!ON_WEB || !meta.connected) return;
+  if (G.mailBusy) return;   // bir okuma sürerken ikincisi başlamaz (yoksa aynı e-posta iki kez görev olur)
+  G.mailBusy = true;
+  try { await gCheckMail2(); } finally { G.mailBusy = false; dedupeTasks(); }
+}
+async function gCheckMail2() {
   refetchRaw();
   // şirket bağlıysa Sedat Bey'in e-postaları doğrudan şirket kutusundan; ajanda hesabından yalnızca kendi ilettikleriniz
   if (coOn() && coHas()) await readBox('co', cofetch, G.senders);
@@ -4107,10 +4130,12 @@ async function readBox(acct, fx, senders) {
     const key = id => acct === 'zk' ? id : acct + ':' + id;
     const fresh = (list.messages || []).filter(x => !seen.has(key(x.id))).reverse();
     for (const x of fresh) {
+      if ((S.mailSeen || []).includes(key(x.id))) continue;
       const m = await fx(`${GMAIL}/messages/${x.id}?format=full`);
+      for (const v of S.mailSeen || []) seen.add(v); for (const v of S.mailMsgIds || []) ids.add(v);
       seen.add(key(x.id)); S.mailSeen = [...seen].slice(-800);
       const msgId = hdr(m, 'Message-ID');
-      if (msgId && ids.has(msgId)) { save(); continue; }   // aynı e-posta iki yoldan geldiyse bir kez
+      if ((msgId && ids.has(msgId)) || (S.tasks || []).some(o => o.mail && ((msgId && o.mail.msgId === msgId) || (o.mail.acct === acct && o.mail.id === m.id)))) { save(); continue; }   // aynı e-posta iki yoldan geldiyse bir kez
       if (msgId) { ids.add(msgId); S.mailMsgIds = [...ids].slice(-800); }
       const fromA = addrOf(hdr(m, 'From')), own = G.own.includes(fromA);
       let subject = hdr(m, 'Subject').replace(/^\s*((re|fwd?|fw|ynt|ilt|i̇lt|aw|wg|antw|sv|vs|tr)\s*:\s*)+/i, '').trim();
@@ -4198,7 +4223,7 @@ function sendAck(t, key = 'ack') { if (t.mail && (t.mail.acct === 'co' ? coHas()
 /* --- düzen: açılışta, her 5 dakikada --- */
 async function gTick() {
   const meta = await gMeta(); if (!ON_WEB || !meta.connected || !unlocked) return;
-  tidyOldMailTasks();
+  tidyOldMailTasks(); dedupeTasks();
   if (!G.dek) G.dek = await loadLocalDek();
   if (gHasToken()) { await gPull(); await gPush(); }
   await gCheckMail(); await gSendPendingAcks(); syncBadge();
