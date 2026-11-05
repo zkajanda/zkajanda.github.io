@@ -1512,6 +1512,8 @@ const DEFAULT_THICK = ['#b5c5b9', '#dbb6bc', '#bba4b2', '#cdc5cb', '#f0c6ae', '#
 const OLD_THICK = ['#8fb59a', '#d99aae', '#a88bb0', '#a8a2a8', '#e9a982', '#9db6c6', '#e3c46e'];
 /* Eski sürümün varsayılan kategori renklerini yeni puslu tonlara taşır; kullanıcının seçtiği başka renklere dokunmaz */
 function migrateState() {
+  // 05.11: görev gönderen adresi koddan ayarlara: eski görevlerden bulunur
+  if (S.settings && !(S.settings.taskFrom || []).length) { const f = [...new Set((S.tasks || []).filter(t => t.mail && !t.manual && t.mail.from).map(t => String(t.mail.from).toLowerCase()))]; if (f.length) S.settings.taskFrom = f; }
   if (S.settings && S.settings.autoLock === 5) S.settings.autoLock = 30;   // 05.11: otomatik kilit 30 dakika
   const map = c => { const i = OLD_THICK.indexOf(String(c).toLowerCase()); return i > -1 ? DEFAULT_THICK[i] : c; };
   S.categories.forEach(c => c.color = map(c.color));
@@ -3512,7 +3514,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '05.11.2026 · 2';
+const APP_VERSION = '05.11.2026 · 3';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3746,14 +3748,15 @@ function openChest() {
    - Yazılar Google Drive'ın uygulamaya özel gizli klasöründe (appDataFolder) ŞİFRELİ durur. Anahtar (DEK) rastgele üretilir;
      şifreyle ve kurtarma koduyla ayrı ayrı kilitlenir. Google ya da başka biri içini okuyamaz.
    - Bu cihazda anahtar, tarayıcının dışarı verilemeyen bir anahtarıyla saklanır; PIN ile açınca da eşitleme sürer.
-   - Gmail: zk.ajanda9 hesabına iletilen Sedat Bey e-postaları ve kullanıcının kendi adresinden gönderdikleri Görevler'e düşer.
+   - Gmail: ajanda hesabına iletilen Sedat Bey e-postaları ve kullanıcının kendi adresinden gönderdikleri Görevler'e düşer.
    - "İş alındı": kullanıcı onay kutusunda Gönder derse, aynı e-posta dizisine cevap olarak gider. */
 const G = {
   clientId: '1076037977072-2h4cm6ugg7qbv8hajuopkth9b41f76tn.apps.googleusercontent.com',
   scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send',
-  account: 'zk.ajanda9@gmail.com',
-  senders: ['c.sedat@vigowood.com'],          // görev gönderen (Csk)
-  own: ['zehra@vigowood.com'],                // kendi adreslerimiz: buradan gelen görev "elle eklenmiş" sayılır, cevap gitmez
+  // e-posta adresleri kodda yazılı değil; ajanda kaydında (şifreli) durur: S.settings.taskFrom, coMail, zkMail
+  get account() { return (S && S.settings && S.settings.zkMail) || undefined; },
+  get senders() { return (S && S.settings && S.settings.taskFrom) || []; },   // görev gönderen (Csk)
+  get own() { return [S && S.settings && S.settings.coMail].filter(Boolean); },   // kendi adresimiz: buradan gelen görev "elle eklenmiş" sayılır
   token: null, exp: 0, client: null, dek: null, meta: null, waiters: [], lastAsk: 0, pushT: null, busy: false
 };
 const ON_WEB = location.protocol === 'https:';
@@ -3814,7 +3817,19 @@ const gHasToken = () => G.token && Date.now() < G.exp;
 async function gToken(first = false) {
   if (!first && gHasToken()) return G.token;
   await gLoadScript(); gInitClient();
-  return new Promise((res, rej) => { G.waiters.push({ res, rej }); G.client.requestAccessToken({ prompt: first ? 'consent' : '' }); });
+  const tok = await new Promise((res, rej) => { G.waiters.push({ res, rej }); G.client.requestAccessToken({ prompt: first ? 'consent' : '' }); });
+  await gCheckAccount();
+  return tok;
+}
+/* ajanda hesabı: adresi kodda yazılı değil, yalnızca parmak izi var. İlk bağlantıda doğru hesap mı diye bakılır;
+   şirket hesabı yanlışlıkla seçilirse jeton kullanılmaz (ajanda şirket hesabına hiçbir şey yazmaz). */
+const ZK_FP = '1188cee9aba026ca39fe0fb21a3a8febef0eb1a78a336c6f14e87779a4b7270e';
+async function gCheckAccount() {
+  if (S.settings.zkMail) return;
+  const p = await gfetch(`${GMAIL}/profile`).catch(() => null); const em = ((p && p.emailAddress) || '').toLowerCase(); if (!em) return;
+  const fp = [...new Uint8Array(await crypto.subtle.digest('SHA-256', te.encode(em)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  if (fp !== ZK_FP) { G.token = null; G.client = null; throw new Error(`Yanlış hesap seçildi (${em}). Ajanda için ayrılan Google hesabını seçin.`); }
+  S.settings.zkMail = em; save(); G.client = null;   // bir sonraki jetonda hesap ipucu olarak kullanılır
 }
 async function gfetch(url, opt = {}, raw = false) {
   if (!gHasToken()) throw new Error('jeton yok');
@@ -3826,7 +3841,7 @@ async function gfetch(url, opt = {}, raw = false) {
 
 /* --- Şirket e-postası: yalnızca Sedat Bey'in e-postalarını okumak ve "İş alındı" cevabı için ayrı bir bağlantı.
    Ajandanın kaydı hiçbir zaman şirket hesabına yazılmaz. --- */
-const CO = { account: 'zehra@vigowood.com', scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send', token: null, exp: 0, client: null, waiters: [], lastAsk: 0 };
+const CO = { get account() { return (S && S.settings && S.settings.coMail) || undefined; }, scope: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send', token: null, exp: 0, client: null, waiters: [], lastAsk: 0 };
 const coOn = () => !!(S.settings && S.settings.coMail);
 const coHas = () => CO.token && Date.now() < CO.exp;
 async function coToken(first = false) {
@@ -3849,8 +3864,9 @@ async function cofetch(url, opt = {}) {
 async function coConnect() {
   await coToken(true);
   const prof = await cofetch('https://gmail.googleapis.com/gmail/v1/users/me/profile');
-  if ((prof.emailAddress || '').toLowerCase() !== CO.account) { CO.token = null; throw new Error(`Yanlış hesap seçildi (${prof.emailAddress}). Lütfen ${CO.account} ile girin.`); }
-  S.settings.coMail = CO.account; save();
+  const em = (prof.emailAddress || '').toLowerCase();
+  if ((CO.account && em !== CO.account) || (G.account && em === G.account)) { CO.token = null; throw new Error(`Yanlış hesap seçildi (${prof.emailAddress}).${CO.account ? ` Lütfen ${CO.account} ile girin.` : ''}`); }
+  S.settings.coMail = em; save();
   await gCheckMail(); await gSendPendingAcks();
 }
 
@@ -4135,6 +4151,7 @@ async function findReplies() {
   if (ch) { save(); refreshWindows(); }
 }
 async function readBox(acct, fx, senders) {
+  if (!senders.length) return;
   const q = encodeURIComponent(`(${senders.map(a => 'from:' + a).join(' OR ')}) newer_than:7d`);
   try {
     const list = await fx(`${GMAIL}/messages?q=${q}&maxResults=30`);
@@ -4266,10 +4283,22 @@ function gRowHTML(err) {
   const ok = gHasToken() && !err;
   const co = coOn() ? `<div class="g-sub"><span class="g-dot ${coHas() ? 'on' : ''}"></span><span>Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}</span></div>`
     : `<div class="g-sub"><button class="btn small ghost" data-g="co">Şirket e-postasını bağla</button></div>`;
-  return `<div class="g-main"><span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button></div>${co}`;
+  const tf = G.senders.join(', ');
+  const who = `<div class="g-sub"><span>Görev gönderen · </span><button class="link g-from" data-g="from">${esc(tf || 'adres yaz')}</button></div>`;
+  return `<div class="g-main"><span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button></div>${co}${who}`;
 }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-g]'); if (!b) return;
+  if (b.dataset.g === 'from') {
+    const m = makeModal({ title: 'Görev gönderen', color: '#c99a9b', size: 'sm',
+      body: `<input type="text" class="gf-in" style="width:100%;box-sizing:border-box" value="${esc(G.senders.join(', '))}" placeholder="ad@sirket.com">`,
+      foot: `<button class="btn ghost" data-gf="no">Vazgeç</button><button class="btn" data-gf="ok">Kaydet</button>` });
+    m.foot.style.justifyContent = 'center';
+    m.foot.addEventListener('click', ev => { const x = ev.target.closest('[data-gf]'); if (!x) return;
+      if (x.dataset.gf === 'ok') { S.settings.taskFrom = $('.gf-in', m.el).value.split(/[,;\s]+/).map(v => v.trim().toLowerCase()).filter(v => /@/.test(v)); save(); if (typeof renderAccount === 'function') renderAccount(false); }
+      m.close(); });
+    return;
+  }
   if (b.dataset.g === 'now') {
     try { await gToken(); } catch { status('Google bağlantısı kurulamadı.'); return; }
     if (coOn() && !coHas()) { try { await coToken(); } catch { } }   // aynı tıklamada ikinci pencere açılamazsa bir sonraki tıklamada
