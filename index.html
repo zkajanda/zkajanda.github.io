@@ -1460,32 +1460,39 @@ function pickFile(accept = '') {
 }
 
 /* ===== Kristal zil sesi ===== */
+/* Tek ses bağlamı: tarayıcı sesi ancak kullanıcı bir kez tıkladıktan/yazdıktan sonra açar; bu yüzden ilk dokunuşta hazırlanır,
+   sonraki bütün zil sesleri (ajanda arka plandayken bile) aynı bağlamdan çalar. */
+let AUDIO = null;
+function audioCtx() {
+  if (!AUDIO) { const AC = window.AudioContext || window.webkitAudioContext; AUDIO = new AC(); }
+  if (AUDIO.state === 'suspended') AUDIO.resume().catch(() => { });
+  return AUDIO;
+}
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { audioCtx(); } catch { } }, { capture: true, passive: true }));
 /* Bildirim sesi: tek, kısık kristal "ting" */
 function ting() {
   try {
-    const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC(); const t = ac.currentTime + .03;
+    const ac = audioCtx(); const t = ac.currentTime + .03;
     [[1, .09, 1.4], [2.76, .022, .8], [5.4, .007, .45]].forEach(([m, v, d]) => {
       const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = 2637 * m;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0004, t + d);
       o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .05);
     });
-    setTimeout(() => ac.close(), 2000);
   } catch { }
 }
 /* Görev sesi: rüzgâr çanı */
 function windChime() {
   try {
-    const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC(); const t0 = ac.currentTime + .03;
+    const ac = audioCtx(); const t0 = ac.currentTime + .03;
     const tone = (f, t, v, d) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0004, t + d); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .05); };
     [2093, 2349.3, 2637, 3136, 2793.8].forEach((f, i) => { const t = t0 + i * .11 + Math.random() * .04; tone(f, t, .035, 1.6); tone(f * 2.76, t, .009, .9); tone(f * 5.4, t, .003, .5); });
-    setTimeout(() => ac.close(), 2800);
   } catch { }
 }
 /* Alarm sesi: kristal çan */
 function chime() {
   try {
-    const AC = window.AudioContext || window.webkitAudioContext; const ac = new AC();
+    const ac = audioCtx();
     const notes = [1567.98, 2093, 2637.02, 3135.96];
     notes.forEach((f, i) => {
       [0, 1.2].forEach(rep => {
@@ -1498,7 +1505,6 @@ function chime() {
         o.start(t); o2.start(t); o.stop(t + 1.9); o2.stop(t + .8);
       });
     });
-    setTimeout(() => ac.close(), 4500);
   } catch { }
 }
 /* ===== Uygulama durumu ===== */
@@ -1506,6 +1512,7 @@ const DEFAULT_THICK = ['#b5c5b9', '#dbb6bc', '#bba4b2', '#cdc5cb', '#f0c6ae', '#
 const OLD_THICK = ['#8fb59a', '#d99aae', '#a88bb0', '#a8a2a8', '#e9a982', '#9db6c6', '#e3c46e'];
 /* Eski sürümün varsayılan kategori renklerini yeni puslu tonlara taşır; kullanıcının seçtiği başka renklere dokunmaz */
 function migrateState() {
+  if (S.settings && S.settings.autoLock === 5) S.settings.autoLock = 30;   // 05.11: otomatik kilit 30 dakika
   const map = c => { const i = OLD_THICK.indexOf(String(c).toLowerCase()); return i > -1 ? DEFAULT_THICK[i] : c; };
   S.categories.forEach(c => c.color = map(c.color));
   for (const d of Object.values(S.days)) (d.cats || []).forEach(c => c.color = map(c.color));
@@ -1549,7 +1556,7 @@ function defaultState() {
     symbolDesc: Object.fromEntries(BASE_SYMBOLS.map(s => [s.key, s.desc])),
     customSymbols: [],
     planets: DEFAULT_PLANETS.slice(),
-    settings: { theme: 'acik', autoLock: 5, ribbon: DEFAULT_RIBBON },
+    settings: { theme: 'acik', autoLock: 30, ribbon: DEFAULT_RIBBON },
     calcHistory: []
   };
 }
@@ -2033,7 +2040,7 @@ function openMovePop(anchor, k, l) {
 }
 
 /* Alarm: gün, saat, alarm notu ve tekrar (her ay / 3 ayda bir / 6 ayda bir / her yıl) */
-const REPEATS = [[0, 'Yok'], [1, 'Her ay'], [3, '3 ayda bir'], [6, '6 ayda bir'], [12, 'Her yıl']];
+const REPEATS = [[0, 'Yok'], [-1, 'Hafta içi her gün'], [1, 'Her ay'], [3, '3 ayda bir'], [6, '6 ayda bir'], [12, 'Her yıl']];
 const repName = n => (REPEATS.find(r => r[0] === n) || [0, ''])[1];
 function openAlarmPop(anchor, k, l) {
   const rec = recOf(l);
@@ -2099,6 +2106,7 @@ function removeAlarm(l, x) {
 const isWorkday = k => { const wd = fromKey(k).getDay(); if (wd === 0 || wd === 6) return false; const h = holidayOf(k); return !h || /arife/i.test(h.name); };
 function shiftToWorkday(k) { let x = k; for (let i = 0; i < 10 && !isWorkday(x); i++) x = addDays(x, -1); return x; }
 function nthDate(start, every, n) {   // başlangıcın gününü korur; kısa ayda ayın son günü
+  if (every === -1) return addDays(start, n);   // günlük
   const d = fromKey(start), day = d.getDate(); const m = d.getMonth() + every * n, y = d.getFullYear() + Math.floor(m / 12), mm = ((m % 12) + 12) % 12;
   const last = new Date(y, mm + 1, 0).getDate(); return toKey(new Date(y, mm, Math.min(day, last)));
 }
@@ -2124,12 +2132,15 @@ function ensureRecUntil(limit) {
   let changed = false;
   for (const rec of S.recurring) {
     if (rec.stopped && rec.stopped <= rec.start) continue;
-    for (let n = 0; n < 600; n++) {
+    const daily = rec.every === -1, lim = daily ? (addDays(UI.today, 60) < limit ? addDays(UI.today, 60) : limit) : limit;
+    if (daily) rec.made = rec.made.filter(x => x >= addDays(UI.today, -3));   // günlükte eski kayıtlar şişmesin
+    for (let n = daily ? Math.max(0, Math.round((fromKey(UI.today) - fromKey(rec.start)) / 864e5) - 2) : 0; n < (daily ? 100000 : 600); n++) {
       const nom = nthDate(rec.start, rec.every, n);
-      if (nom > limit) break;
+      if (nom > lim) break;
       if (rec.stopped && nom >= rec.stopped) break;
       if (rec.made.includes(nom)) continue;
-      const day = shiftToWorkday(nom);
+      if (daily && !isWorkday(nom)) continue;   // günlük: hafta sonu ve tatilde yazılmaz, kaydırılmaz
+      const day = daily ? nom : shiftToWorkday(nom);
       if (day < UI.today && n > 0) { rec.made.push(nom); continue; }   // geçmişe kalan tekrarlar yazılmaz
       const line = newLine(rec.catId, { text: rec.text, color: rec.color, icons: (rec.icons || []).slice(), recId: rec.id, recDate: nom });
       applyOcc(rec, line, nom, day);
@@ -2477,6 +2488,7 @@ function leftoverLines(days = 7) {
     const k = addDays(UI.today, -i), d = S.days[k]; if (!d) continue;
     for (const l of d.lines) {
       if (!(l.text || '').trim() || l.done || l.recSource) continue;
+      if (l.recId && (recOf(l) || {}).every === -1) continue;   // günlük alarm ertesi gün zaten yeniden kurulu
       if (l.movedTo && movedAlive(l)) continue;
       if ((l.alarmDays || []).length && alarmCopies(l).length) continue;
       out.push([k, l]);
@@ -2536,7 +2548,7 @@ function showLeftovers(list, ring) {
       { icon: 'check', label: 'Bitti', fn: () => { markLineDone(k, l); setTimeout(() => step(i + 1), 1800); } },
       { icon: 'arrow', label: 'Bugüne aktar', fn: () => { moveLineTo(k, l, UI.today); save(); renderMain(); status('Bugüne aktarıldı.'); setTimeout(() => step(i + 1), 1800); } }
     ], false, 'left');
-    if (i === 0 && ring) ting();
+    if (ring) { ting(); ring = false; }   // ilk gösterilen hatırlatmada (ilki atlansa da) bir kez çalar
     const my = statusSeq; setTimeout(() => { if (statusSeq === my) step(i + 1); }, 5400);
   };
   step(0);
@@ -3500,7 +3512,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '04.11.2026 · 4';
+const APP_VERSION = '05.11.2026 · 2';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
