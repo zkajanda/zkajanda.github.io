@@ -1029,6 +1029,15 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
 .rep-clip .ic { width: 17px; height: 17px; }
 .rep-names { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .rep-names[hidden] { display: none; }
+
+/* 05.11: alt menü yalnızca simge; ad üzerine gelince simgenin üstünde görünür; simgeler %10 büyük ve aynı hizada */
+.bottom-menu { padding: 12px 10px 11px; }
+.bm-item { gap: 0; }
+.bm-item .ic, .bm-item .ferman-ic { width: 25px; height: 25px; display: block; }
+.bm-lbl { position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity .15s; background: var(--card); border: 1px solid var(--card-line); border-radius: 8px; padding: 1px 8px; color: var(--ink); }
+.bm-item:hover .bm-lbl, .bm-item:focus-visible .bm-lbl { opacity: 1; }
+@media (max-width: 620px) { .bm-item .ic, .bm-item .ferman-ic { width: 23px; height: 23px; } }
 </style>
 </head>
 <body>
@@ -3514,7 +3523,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '05.11.2026 · 3';
+const APP_VERSION = '05.11.2026 · 4';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4392,7 +4401,7 @@ function shellHTML() {
       <div class="right"><button class="icon-btn planet-btn" id="planetBtn"></button></div>
     </header>
     <main id="main"></main>
-    <nav class="bottom-menu">${menu.map(([k, ic, n, c]) => `<button class="bm-item${ic === 'ferman' ? ' bm-ferman' : ''}" data-menu="${k}" style="--c:${c}">${ic === 'ferman' ? fermanSvg() + '<span class="bm-badge" hidden></span>' : icon(ic)}(${n})</button>`).join('')}</nav>
+    <nav class="bottom-menu">${menu.map(([k, ic, n, c]) => `<button class="bm-item${ic === 'ferman' ? ' bm-ferman' : ''}" data-menu="${k}" style="--c:${c}">${ic === 'ferman' ? fermanSvg() + '<span class="bm-badge" hidden></span>' : icon(ic)}<span class="bm-lbl">(${n})</span></button>`).join('')}</nav>
     ${FERMAN_DEFS}
   </div>
   <div id="toasts" class="toasts"></div>
