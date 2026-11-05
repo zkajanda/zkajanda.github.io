@@ -1051,6 +1051,16 @@ input::-ms-reveal, input::-ms-clear { display: none; }
 .g-fromrow { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .g-from { border: 0; background: none; padding: 0; font: inherit; color: var(--ink-soft); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .g-from:hover { color: var(--ink); }
+
+/* 05.11 · 6: Hesap'ta bağlantılar yalnızca iki minicik nokta + ↻; adları üzerine gelince */
+.g-dots { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.g-pt { position: relative; width: 9px; height: 9px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: #c8beb9; }
+.g-pt.on { background: #8fb39a; }
+.g-dots [data-tip]::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  font: italic 12px var(--font); color: var(--ink-soft); background: var(--card); border: 1px solid var(--card-line); border-radius: 8px; padding: 1px 8px; opacity: 0; transition: opacity .15s; z-index: 5; }
+.g-dots [data-tip]:hover::after { opacity: 1; }
+.g-dots .g-sync { position: relative; padding: 3px; }
+.g-dots .g-sync .ic { width: 14px; height: 14px; }
 </style>
 </head>
 <body>
@@ -1761,7 +1771,7 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-al]'); if (!b || b.dataset.al === 'bell') return;
   const it = b.closest('[data-al-id]'); const l = findLine(it.dataset.alDay, it.dataset.alId); if (!l) return;
   if (b.dataset.al === 'off') alarmOff(l);
-  else if (b.dataset.al === 'on') { l.alarm.on = true; l.alarm.fired = false; l.alarm.pre = l.alarm.late = false; save(); renderMain(); toast('Alarm yeniden kuruldu.'); }
+  else if (b.dataset.al === 'on') { l.alarm.on = true; l.alarm.fired = false; l.alarm.pre = l.alarm.late = false; l.alarm.setAt = Date.now(); save(); renderMain(); toast('Alarm yeniden kuruldu.'); }
   else if (b.dataset.al === 'go') goDay(it.dataset.alDay, l.id);
 });
 document.addEventListener('dblclick', e => {
@@ -2097,7 +2107,7 @@ function openAlarmPop(anchor, k, l) {
       return;
     }
     if (rec) stopRec(rec, UI.today, l);   // tekrar "Yok" yapıldı: bundan sonrakiler kalkar
-    const al = { date: pick, hour: h, on: true, fired: false, note: nt };
+    const al = { date: pick, hour: h, on: true, fired: false, note: nt, setAt: Date.now() };
     setAlarm(k, l, al);
     save(); closePop(); renderMain(); refreshWindows();
     toast(`Alarm kuruldu: ${fmtDot(pick)} ${pad(h)}:00`);
@@ -2148,7 +2158,7 @@ function setRecurring(k, l, opt) {
   ensureRecUntil(addDays(UI.today, 400));
 }
 function applyOcc(rec, line, nominal, day) {
-  line.alarm = rec.hour == null ? null : { date: day, hour: rec.hour, on: true, fired: false, note: rec.note || '' };
+  line.alarm = rec.hour == null ? null : { date: day, hour: rec.hour, on: true, fired: false, note: rec.note || '', setAt: Date.now() };
 }
 function ensureRecUntil(limit) {
   if (!S.recurring || !S.recurring.length) return;
@@ -2411,9 +2421,11 @@ function checkAlarms(startup = false) {
       }
       continue;
     }
-    if (a.date === tk && a.hour >= 12 && h >= 9 && h < a.hour && !a.pre) {
+    // ön hatırlatma yalnızca o sabah 09:00'dan önce kurulmuş alarmlar için; sade bildirim (sarı yalnızca çalarken)
+    const nine = new Date(); nine.setHours(9, 0, 0, 0);
+    if (a.date === tk && a.hour >= 12 && h >= 9 && h < a.hour && !a.pre && (a.setAt || 0) < nine.getTime()) {
       a.pre = true; changed = true; chime();
-      whenStatusFree(() => status(`${icon('bell')} Bugün <b>${pad(a.hour)}:00</b> · ${esc(a.note || l.text || 'Alarm')}`, null, false, 'alarm'));
+      whenStatusFree(() => status(`${icon('bell')} Bugün <b>${pad(a.hour)}:00</b> · ${esc(a.note || l.text || 'Alarm')}`));
       continue;
     }
     if (a.date === tk && a.hour <= h) {
@@ -3238,7 +3250,7 @@ const taskAddHTML = m => m.adding
 function approveTask(t, catId, day, hour) {
   const l = newLine(catId, { text: t.lineText || t.title, taskId: t.id });
   dayRec(day, true).lines.push(l);
-  if (hour != null) setAlarm(day, l, { date: day, hour, on: true, fired: false, note: l.text });
+  if (hour != null) setAlarm(day, l, { date: day, hour, on: true, fired: false, note: l.text, setAt: Date.now() });
   for (const a of t.att || []) if (a.fileId) S.docs.push({ id: uid(), fileId: a.fileId, name: a.name, type: a.type || '', size: a.size || 0, date: day, catId, line: { date: day, id: l.id }, createdAt: Date.now() });
   t.done = { at: Date.now(), day, catId, lineId: l.id }; delete t.dismissed; if (day === UI.today) t.dueWarned = day;
   save(); renderMain(); taskBadge(); refreshWindows();
@@ -3539,7 +3551,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '05.11.2026 · 5';
+const APP_VERSION = '05.11.2026 · 6';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4306,16 +4318,15 @@ function gRowHTML(err) {
   if (!meta.connected) return `<button class="btn small ghost" data-g="connect">Google'a bağlan</button>`;
   const when = meta.at ? new Date(meta.at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '—';
   const ok = gHasToken() && !err;
-  const co = coOn() ? `<div class="g-sub"><span class="g-dot ${coHas() ? 'on' : ''}"></span><span>Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}</span></div>`
-    : `<div class="g-sub"><button class="btn small ghost" data-g="co">Şirket e-postasını bağla</button></div>`;
-  const tf = G.senders.join(', ');
-  const who = `<div class="g-sub g-fromrow"><span>Görev gönderen</span><button class="g-from" data-g="from">${esc(tf || 'adres yaz')}</button></div>`;
-  return `<div class="g-main"><span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button></div>${co}${who}`;
+  const gTip = `Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}`;
+  const cTip = coOn() ? `Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}` : 'Şirket e-postasını bağla';
+  // yazı yok: iki minicik nokta ve ↻; ne oldukları üzerine gelince görünür. Şirket noktası: bağlıysa görev gönderen adresi, değilse bağlan.
+  return `<div class="g-dots"><button class="g-pt ${ok ? 'on' : ''}" data-tip="${esc(gTip)}" data-g="now"></button><button class="g-pt ${coOn() && coHas() ? 'on' : ''}" data-tip="${esc(cTip)}" data-g="${coOn() ? 'from' : 'co'}"></button><button class="icon-btn g-sync" data-g="now" data-tip="Şimdi eşitle">${icon('repeat')}</button></div>`;
 }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-g]'); if (!b) return;
   if (b.dataset.g === 'from') {
-    const m = makeModal({ title: 'Görev gönderen', color: '#c99a9b', size: 'sm',
+    const m = makeModal({ title: 'Görev gönderen', color: '#c99a9b', size: 'sm', sub: coOn() ? `Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}` : '',
       body: `<input type="text" class="gf-in" style="width:100%;box-sizing:border-box" value="${esc(G.senders.join(', '))}" placeholder="ad@sirket.com">`,
       foot: `<button class="btn ghost" data-gf="no">Vazgeç</button><button class="btn" data-gf="ok">Kaydet</button>` });
     m.foot.style.justifyContent = 'center';
