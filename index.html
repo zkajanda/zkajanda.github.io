@@ -1038,6 +1038,19 @@ body:has(#gate:not(.hidden)) .overlay { z-index: 210; }
   opacity: 0; transition: opacity .15s; background: var(--card); border: 1px solid var(--card-line); border-radius: 8px; padding: 1px 8px; color: var(--ink); }
 .bm-item:hover .bm-lbl, .bm-item:focus-visible .bm-lbl { opacity: 1; }
 @media (max-width: 620px) { .bm-item .ic, .bm-item .ferman-ic { width: 23px; height: 23px; } }
+
+/* 05.11 · 5 */
+.bm-lbl { bottom: auto; top: calc(100% - 1px); background: none; border: 0; padding: 0; font-size: 10.5px; line-height: 11px; color: var(--ink-soft); }
+input::-ms-reveal, input::-ms-clear { display: none; }
+.pw-field .icon-btn { opacity: .5; padding: 3px; }
+.pw-field .icon-btn:hover { opacity: .85; }
+.pw-field .ic { width: 13px; height: 13px; }
+.s3-lock { display: flex; margin: 14px auto; border: 0; background: none; cursor: pointer; color: var(--ink-faint); padding: 6px; border-radius: 8px; }
+.s3-lock:hover { color: var(--ink); background: var(--paper-2); }
+.s3-lock .ic { width: 15px; height: 15px; }
+.g-fromrow { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.g-from { border: 0; background: none; padding: 0; font: inherit; color: var(--ink-soft); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.g-from:hover { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -1102,7 +1115,7 @@ const ICON_PATHS = {
   music: '<path d="M9 17.5V6l10-2v11"/><circle cx="6.8" cy="17.5" r="2.2"/><circle cx="16.8" cy="15" r="2.2"/>',
   flag: '<path d="M6 21V4"/><path d="M6 4.5c4-2 6.5 2 11 0v8c-4.5 2-7-2-11 0"/>',
   phone: '<path d="M6.5 4h3l1.5 4-2 1.3a10 10 0 005.7 5.7L16 13l4 1.5v3A2 2 0 0118 19.5 14.5 14.5 0 014.5 6 2 2 0 016.5 4z"/>',
-  tools: '<path d="M14.6 9.4a6.3 6.3 0 107.1 8.4 7.6 7.6 0 01-7.1-8.4z" transform="translate(-4.2 -1.6)"/><path d="M15.6 2.8c.35 2.3 1.25 3.2 3.55 3.55-2.3.35-3.2 1.25-3.55 3.55-.35-2.3-1.25-3.2-3.55-3.55 2.3-.35 3.2-1.25 3.55-3.55z"/><path d="M20.3 9.6v3.2M18.7 11.2h3.2"/>',
+  tools: '<path d="M9.34 5.99A7.6 7.6 0 1 0 16.88 17.64A7.0 7.0 0 0 1 9.34 5.99Z"/><path d="M15.6 2.8c.35 2.3 1.25 3.2 3.55 3.55-2.3.35-3.2 1.25-3.55 3.55-.35-2.3-1.25-3.2-3.55-3.55 2.3-.35 3.2-1.25 3.55-3.55z"/><path d="M20.3 9.6v3.2M18.7 11.2h3.2"/>',
   chat: '<path d="M12 4.2a7.6 7.6 0 00-6.6 11.4l-1 3.9 3.9-1A7.6 7.6 0 1012 4.2z"/>',
   mail: '<rect x="3.5" y="6" width="17" height="12.5" rx="1.6"/><path d="M4 7l8 6 8-6"/>',
   coin: '<ellipse cx="12" cy="12" rx="7.5" ry="7.5"/><path d="M14.5 9.2c-.6-.8-1.5-1.2-2.5-1.2-1.4 0-2.5.8-2.5 2s1.1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1 0-1.9-.4-2.5-1.2M12 6.5v1.5M12 16v1.5"/>',
@@ -1469,53 +1482,52 @@ function pickFile(accept = '') {
 }
 
 /* ===== Kristal zil sesi ===== */
-/* Tek ses bağlamı: tarayıcı sesi ancak kullanıcı bir kez tıkladıktan/yazdıktan sonra açar; bu yüzden ilk dokunuşta hazırlanır,
-   sonraki bütün zil sesleri (ajanda arka plandayken bile) aynı bağlamdan çalar. */
+/* Zil sesleri iki yoldan çalar: önce hazır ses dosyası (video sesi gibi, Edge'de en sağlam yol),
+   olmazsa doğrudan ses üretimi. Sesler açılışta bir kez dosyaya çevrilir. */
+const SOUND_DUR = { ting: 1.6, wind: 2.4, chime: 3.4 };
+function soundGraph(name, ac, out, t0) {
+  const tone = (f, t, v, d, att = .008) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + att); g.gain.exponentialRampToValueAtTime(.0004, t + d); o.connect(g).connect(out); o.start(t); o.stop(t + d + .05); };
+  if (name === 'ting') [[1, .09, 1.4], [2.76, .022, .8], [5.4, .007, .45]].forEach(([m, v, d]) => tone(2637 * m, t0, v, d));
+  else if (name === 'wind') [2093, 2349.3, 2637, 3136, 2793.8].forEach((f, i) => { const t = t0 + i * .11 + [.01, .03, 0, .02, .035][i]; tone(f, t, .035, 1.6); tone(f * 2.76, t, .009, .9); tone(f * 5.4, t, .003, .5); });
+  else [1567.98, 2093, 2637.02, 3135.96].forEach((f, i) => [0, 1.2].forEach(rep => { const t = t0 + i * .13 + rep; tone(f, t, .16, 1.8, .01); tone(f * 2.76, t, .04, .7, .01); }));
+}
+const SOUND_URL = {};
+function wavURL(buf) {
+  const d = buf.getChannelData(0), n = d.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, buf.sampleRate, true); v.setUint32(28, buf.sampleRate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, d[i])) * 32767, true);
+  return URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+}
+async function prepareSounds() {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return;
+  for (const name of Object.keys(SOUND_DUR)) {
+    try { const sr = 44100, oc = new OAC(1, Math.ceil(sr * SOUND_DUR[name]), sr); soundGraph(name, oc, oc.destination, .02); SOUND_URL[name] = wavURL(await oc.startRendering()); } catch { }
+  }
+}
+prepareSounds();
 let AUDIO = null;
 function audioCtx() {
   if (!AUDIO) { const AC = window.AudioContext || window.webkitAudioContext; AUDIO = new AC(); }
   if (AUDIO.state === 'suspended') AUDIO.resume().catch(() => { });
   return AUDIO;
 }
+// ilk dokunuşta ses yolu açılır (tarayıcı kuralı)
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { audioCtx(); } catch { } }, { capture: true, passive: true }));
+function playSound(name) {
+  const direct = () => { try { const ac = audioCtx(); soundGraph(name, ac, ac.destination, ac.currentTime + .03); } catch { } };
+  const url = SOUND_URL[name];
+  if (!url) return direct();
+  try { const a = new Audio(url); a.volume = 1; const p = a.play(); if (p && p.catch) p.catch(direct); } catch { direct(); }
+}
 /* Bildirim sesi: tek, kısık kristal "ting" */
-function ting() {
-  try {
-    const ac = audioCtx(); const t = ac.currentTime + .03;
-    [[1, .09, 1.4], [2.76, .022, .8], [5.4, .007, .45]].forEach(([m, v, d]) => {
-      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = 2637 * m;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0004, t + d);
-      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .05);
-    });
-  } catch { }
-}
+function ting() { playSound('ting'); }
 /* Görev sesi: rüzgâr çanı */
-function windChime() {
-  try {
-    const ac = audioCtx(); const t0 = ac.currentTime + .03;
-    const tone = (f, t, v, d) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(.0004, t + d); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + d + .05); };
-    [2093, 2349.3, 2637, 3136, 2793.8].forEach((f, i) => { const t = t0 + i * .11 + Math.random() * .04; tone(f, t, .035, 1.6); tone(f * 2.76, t, .009, .9); tone(f * 5.4, t, .003, .5); });
-  } catch { }
-}
+function windChime() { playSound('wind'); }
 /* Alarm sesi: kristal çan */
-function chime() {
-  try {
-    const ac = audioCtx();
-    const notes = [1567.98, 2093, 2637.02, 3135.96];
-    notes.forEach((f, i) => {
-      [0, 1.2].forEach(rep => {
-        const t = ac.currentTime + i * .13 + rep;
-        const o = ac.createOscillator(); const g = ac.createGain(); const o2 = ac.createOscillator(); const g2 = ac.createGain();
-        o.type = 'sine'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.76;
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .01); g.gain.exponentialRampToValueAtTime(.0005, t + 1.8);
-        g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(.04, t + .01); g2.gain.exponentialRampToValueAtTime(.0005, t + .7);
-        o.connect(g).connect(ac.destination); o2.connect(g2).connect(ac.destination);
-        o.start(t); o2.start(t); o.stop(t + 1.9); o2.stop(t + .8);
-      });
-    });
-  } catch { }
-}
+function chime() { playSound('chime'); }
 /* ===== Uygulama durumu ===== */
 const DEFAULT_THICK = ['#b5c5b9', '#dbb6bc', '#bba4b2', '#cdc5cb', '#f0c6ae', '#c8d1d4', '#eedcb0'];
 const OLD_THICK = ['#8fb59a', '#d99aae', '#a88bb0', '#a8a2a8', '#e9a982', '#9db6c6', '#e3c46e'];
@@ -2307,7 +2319,7 @@ function split3HTML() {
   return `<div class="split3">
     <div class="col"><div class="col-head"><b>Günlük Ajanda</b><button class="btn small ghost" data-s3="close">Kapat</button></div>${dayHTML(UI.day)}</div>
     <div class="col"><div class="col-head"><b>${icon('folder')} Belgeler</b><button class="btn small" data-s3="adddoc">+ Ekle</button></div><div class="s3-docs">${docRowsHTML(S.docs.filter(d => d.date === UI.day), false) || '<div class="empty">Belge yok.</div>'}</div></div>
-    <div class="col"><div class="col-head"><b>${icon('notebook')} Notlar</b><button class="btn small" data-s3="addnote">+ Ekle</button></div><div class="s3-notes" data-notes-scope="day">${noteRowsHTML(notesList().filter(n => n.date === UI.day), false) || '<div class="empty">Not yok.</div>'}</div></div>
+    <div class="col"><div class="col-head"><b>${icon('notebook')} Notlar</b><button class="btn small" data-s3="addnote">+ Ekle</button></div><div class="s3-notes" data-notes-scope="day">${s3NotesHTML()}</div></div>
   </div>`;
 }
 document.addEventListener('click', e => {
@@ -2723,7 +2735,7 @@ const WINDOWS = {};
 function openWindow(name, side = false, ok = false) {
   const w = WINDOWS[name];
   const existing = openModals.find(m => m.name === name) || (sideWin && sideWin.name === name ? sideWin : null);
-  if (name === 'notlar' && !existing && !ok) return askPin(() => openWindow(name, side, true));
+  if (name === 'notlar' && !existing && !ok) return askPin(() => { notesOpen = true; openWindow(name, side, true); });
   if (existing) existing.close();
   const rec = makeModal({ title: w.title, color: w.color, sub: w.sub, size: w.size || '', name, sideable: !!w.sideable, side, foot: w.foot ? w.foot() : '' });
   rec.render = () => w.render(rec, side);
@@ -2731,6 +2743,10 @@ function openWindow(name, side = false, ok = false) {
   w.bind && w.bind(rec, side);
   return rec;
 }
+/* 3'e Bölünmüş Masa: notlar sütunu PIN girilene kadar yalnızca minicik bir kilit; ajanda kilitlenince yine kapanır */
+let notesOpen = false;
+const s3NotesHTML = () => notesOpen ? (noteRowsHTML(notesList().filter(x => x.date === UI.day), false, typeof noteEditing !== 'undefined' ? noteEditing : null) || '<div class="empty">Not yok.</div>') : `<button class="s3-lock" data-s3lock>${icon('lock')}</button>`;
+document.addEventListener('click', e => { if (!e.target.closest('[data-s3lock]')) return; askPin(() => { notesOpen = true; const n = $('.s3-notes'); if (n) { n.innerHTML = s3NotesHTML(); hydrateThumbs(n); } }); });
 /* Notlar kilidi: her açışta ajandanın PIN'i sorulur; ajanda kilitlenince pencere de kapanır */
 function askPin(then) {
   const m = makeModal({ title: 'Notlar', color: '#d5b9b9', size: 'sm',
@@ -2748,7 +2764,7 @@ function askPin(then) {
 }
 function refreshWindows() {
   for (const m of [...openModals, sideWin].filter(Boolean)) if (m.render && !m.el.contains(document.activeElement)) m.render();
-  if (UI.view === 'split3') { const a = document.activeElement; if (!(a && a.closest && a.closest('.col'))) { const d = $('.s3-docs'); const n = $('.s3-notes'); if (d) d.innerHTML = docRowsHTML(S.docs.filter(x => x.date === UI.day), false) || '<div class="empty">Belge yok.</div>'; if (n) n.innerHTML = noteRowsHTML(notesList().filter(x => x.date === UI.day), false) || '<div class="empty">Not yok.</div>'; } }
+  if (UI.view === 'split3') { const a = document.activeElement; if (!(a && a.closest && a.closest('.col'))) { const d = $('.s3-docs'); const n = $('.s3-notes'); if (d) d.innerHTML = docRowsHTML(S.docs.filter(x => x.date === UI.day), false) || '<div class="empty">Belge yok.</div>'; if (n) n.innerHTML = s3NotesHTML(); } }
 }
 let softT = null;
 function softRefreshWindows() { clearTimeout(softT); softT = setTimeout(refreshWindows, 400); }
@@ -2942,7 +2958,7 @@ function noteRowsHTML(list, full = true, openId = null) {
 let noteEditing = null;
 function rerenderNoteHosts() {
   for (const m of [...openModals, sideWin].filter(Boolean)) if (m.name === 'notlar') m.render();
-  const s3 = $('.s3-notes'); if (s3) { s3.innerHTML = noteRowsHTML(notesList().filter(x => x.date === UI.day), false, noteEditing) || '<div class="empty">Not yok.</div>'; hydrateThumbs(s3); }
+  const s3 = $('.s3-notes'); if (s3) { s3.innerHTML = s3NotesHTML(); hydrateThumbs(s3); }
 }
 function startNoteEdit(id) {
   noteEditing = id; rerenderNoteHosts();
@@ -3371,7 +3387,7 @@ WINDOWS.gorevler = {
         <div class="tk-top"><span class="tk-date">${fmtDot(toKey(new Date(t.at)))}</span><span class="tk-who">${esc(t.from || 'Csk')}</span>${t.replyTo ? `<span class="tk-reply">↩</span>` : ''}<span class="tk-ttl">${esc(t.title)}</span>
           ${t.done ? `<span class="tk-okd">${shortDay(t.done.at)}</span>` : ''}${rep ? `<button class="tk-rep" data-tkrep>${icon('replied')}</button>` : ''}${(t.att || []).length ? `<span class="tk-clip" title="${esc(t.att.map(a => a.name).join(', '))}">${icon('clip')}</span>` : ''}<span class="tk-src">${icon(t.src === 'wa' ? 'chat' : 'mail')}</span><span class="tk-dot ${t.done ? 'g' : t.dismissed ? 'r' : ''}"></span></div>
         ${rep && m.rep === t.id ? `<div class="tk-repbox">${esc(rep.text.trim()).replace(/\n/g, '<br>')}${repAttHTML(rep)}</div>` : ''}
-        ${open ? `<div class="tk-body">${(() => { const o = t.replyTo && S.tasks.find(x => x.id === t.replyTo); return o ? `<div class="tk-orig">↩ Ajandaya yazılan: ${esc(o.lineText || o.title)}</div>` : ''; })()}${taskBodyHTML(t, m.raw === t.id)}
+        ${open ? `<div class="tk-body">${(() => { const o = t.replyTo && S.tasks.find(x => x.id === t.replyTo); return o ? `<div class="tk-orig">↩ ${o.done ? 'Ajandaya yazılan' : 'Önceki'}: ${esc(o.done ? (o.lineText || o.title) : o.title)}</div>` : ''; })()}${taskBodyHTML(t, m.raw === t.id)}
           ${(t.att || []).map((a, i) => `<button class="tk-att" data-tkatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}
           <div class="tk-chips">${S.categories.map(c => `<button class="tk-chip ${p.cat === c.id ? 'on' : ''}" data-tkcat="${c.id}" style="--c:${c.color}">${esc(c.name)}</button>`).join('')}</div>
           <div class="tk-when"><span class="small-note">Gün</span><button class="tk-day" data-tkday>${fmtDot(p.day)}</button><span class="small-note">Saat</span><select class="tk-hour">${hours}</select></div>
@@ -3523,7 +3539,7 @@ WINDOWS.hesap = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '05.11.2026 · 4';
+const APP_VERSION = '05.11.2026 · 5';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3642,7 +3658,7 @@ function enterApp() {
   if (!entered) { entered = true; renderAll(); setTimeout(() => checkAlarms(true), 600); }
   else renderAll();
 }
-function lockApp() { if (!AUTH || !unlocked) return; closeAllPanels(); showLock(); }
+function lockApp() { if (!AUTH || !unlocked) return; notesOpen = false; closeAllPanels(); showLock(); }
 function exitApp() { closeAllPanels(); showLogin('Ajandadan çıkış yaptın. Tekrar açmak için şifreni yaz.'); }
 function closeAllPanels() { closePop(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close(); $('#accountPop').classList.add('hidden'); }
 
@@ -4189,7 +4205,7 @@ async function readBox(acct, fx, senders) {
         } catch (e) { console.warn('[zk] ek alınamadı', e); }
       }
       // aynı yazışmadaki önceki görev (ör. "İş alındı" mesajına verilen cevap)
-      const prev = !own && (S.tasks || []).find(o => o.mail && o.mail.acct === acct && o.mail.threadId === m.threadId && (o.done || o.ack));
+      const prev = !own && [...(S.tasks || [])].reverse().find(o => o.mail && !o.manual && o.mail.acct === acct && o.mail.threadId === m.threadId);
       receiveTask({
         title: subject || '', body, raw: raw.slice(0, 20000), src: 'mail', att, due: dueFromText(subject + '\n' + body), replyTo: prev ? prev.id : null,
         manual: own, tidy: 2, mail: { acct, id: m.id, threadId: m.threadId, msgId, from: fromA, subject: hdr(m, 'Subject') },
@@ -4293,7 +4309,7 @@ function gRowHTML(err) {
   const co = coOn() ? `<div class="g-sub"><span class="g-dot ${coHas() ? 'on' : ''}"></span><span>Şirket e-postası · ${coHas() ? 'bağlı' : 'bağlantı bekliyor'}</span></div>`
     : `<div class="g-sub"><button class="btn small ghost" data-g="co">Şirket e-postasını bağla</button></div>`;
   const tf = G.senders.join(', ');
-  const who = `<div class="g-sub"><span>Görev gönderen · </span><button class="link g-from" data-g="from">${esc(tf || 'adres yaz')}</button></div>`;
+  const who = `<div class="g-sub g-fromrow"><span>Görev gönderen</span><button class="g-from" data-g="from">${esc(tf || 'adres yaz')}</button></div>`;
   return `<div class="g-main"><span class="g-dot ${ok ? 'on' : ''}"></span><span>Google · ${ok ? (meta.dirty ? 'eşitleniyor' : 'eşitlendi ' + when) : 'bağlantı bekliyor'}</span><button class="icon-btn" data-g="now" title="Şimdi eşitle">${icon('repeat')}</button></div>${co}${who}`;
 }
 document.addEventListener('click', async e => {
@@ -4401,7 +4417,7 @@ function shellHTML() {
       <div class="right"><button class="icon-btn planet-btn" id="planetBtn"></button></div>
     </header>
     <main id="main"></main>
-    <nav class="bottom-menu">${menu.map(([k, ic, n, c]) => `<button class="bm-item${ic === 'ferman' ? ' bm-ferman' : ''}" data-menu="${k}" style="--c:${c}">${ic === 'ferman' ? fermanSvg() + '<span class="bm-badge" hidden></span>' : icon(ic)}<span class="bm-lbl">(${n})</span></button>`).join('')}</nav>
+    <nav class="bottom-menu">${menu.map(([k, ic, n, c]) => `<button class="bm-item${ic === 'ferman' ? ' bm-ferman' : ''}" data-menu="${k}" style="--c:${c}">${ic === 'ferman' ? fermanSvg() + '<span class="bm-badge" hidden></span>' : icon(ic)}<span class="bm-lbl">${n}</span></button>`).join('')}</nav>
     ${FERMAN_DEFS}
   </div>
   <div id="toasts" class="toasts"></div>
