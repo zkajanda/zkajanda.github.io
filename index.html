@@ -1061,6 +1061,54 @@ input::-ms-reveal, input::-ms-clear { display: none; }
 .g-dots [data-tip]:hover::after { opacity: 1; }
 .g-dots .g-sync { position: relative; padding: 3px; }
 .g-dots .g-sync .ic { width: 14px; height: 14px; }
+
+/* 06.11: Görevler simgesi gözle aynı hizada; rozet tepesine binmesin */
+.bm-item .ferman-ic { width: 23px; height: 23px; margin: 2px 0 0; }
+.bm-badge { top: -5px; right: -3px; }
+/* Notlar'da satırın açık belgeleri: silik gri ataş */
+.note-docs { display: inline-flex; gap: 2px; }
+.doc-faint { display: inline-flex; border: 0; background: none; padding: 2px; cursor: pointer; color: var(--ink-faint); opacity: .55; border-radius: 6px; }
+.doc-faint:hover { opacity: 1; background: var(--paper-2); }
+.doc-faint .ic { width: 15px; height: 15px; }
+
+/* Müzik kaseti: sağ altta, menünün üstünde; beklerken silik */
+#kaset { position: fixed; right: 30px; bottom: 98px; z-index: 34; width: 104px; opacity: .45; transition: opacity .2s; }
+#kaset:hover, #kaset.playing, #kaset:has(.ks-list:not([hidden])) { opacity: 1; }
+#kaset[hidden] { display: none; }
+#kaset .ks-tape svg { display: block; width: 104px; height: auto; filter: drop-shadow(0 3px 5px rgba(92,66,58,.12)); }
+#kaset .kp { cursor: pointer; }
+#kaset .kp:hover circle { fill: #fbeee6; }
+#kaset .kp[data-kp="list"]:hover path { stroke: #c9a28e; }
+#kaset .ks-list { position: absolute; right: 0; bottom: calc(100% + 6px); width: 256px; max-height: 340px; overflow: auto; padding: 8px;
+  background: rgba(255, 252, 248, .86); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid var(--card-line); border-radius: 12px;
+  box-shadow: 0 10px 24px -12px rgba(92,66,58,.3); }
+#kaset .ks-list[hidden] { display: block; visibility: hidden; pointer-events: none; }
+#kaset .ks-yt { width: 240px; height: 135px; border-radius: 8px; overflow: hidden; margin: 0 auto 6px; }
+#kaset .ks-s { font: 14px var(--font); color: var(--ink-soft); padding: 4px 8px; border-radius: 8px; cursor: default; user-select: none; }
+#kaset .ks-s:hover { background: rgba(233, 210, 196, .35); }
+#kaset .ks-s.on { color: #9b5b5d; font-weight: 600; }
+body.has-side #kaset { right: calc(var(--side-w, 400px) + 26px); }
+#gate:not(.hidden) ~ #kaset, body:has(#gate:not(.hidden)) #kaset { visibility: hidden; }
+.mz { display: flex; flex-direction: column; gap: 10px; padding: 6px 2px; }
+.mz-l { display: flex; flex-direction: column; gap: 4px; font: italic 13.5px var(--font); color: var(--ink-soft); }
+.mz-in { width: 100%; box-sizing: border-box; font: 14px var(--font); padding: 6px 10px; border: 1px solid var(--card-line); border-radius: 10px; background: var(--paper-2); color: var(--ink); }
+.mz-b { display: flex; gap: 8px; justify-content: flex-end; }
+@media (max-width: 620px) { #kaset { right: 10px; bottom: 64px; } }
+#kaset .ks-x { position: absolute; top: -8px; right: -8px; z-index: 2; display: flex; border: 0; background: var(--card); border-radius: 50%; padding: 3px; cursor: pointer; color: var(--ink-faint); opacity: 0; transition: opacity .15s; box-shadow: 0 1px 3px rgba(92,66,58,.2); }
+#kaset:hover .ks-x { opacity: 1; }
+#kaset .ks-x .ic { width: 11px; height: 11px; }
+
+/* dönen ok menüsü */
+.rec-menu { display: flex; flex-direction: column; min-width: 170px; }
+.rec-menu .rm-h { font: italic 12.5px var(--font); color: var(--ink-faint); padding: 2px 8px 6px; border-bottom: 1px dashed var(--rule); margin-bottom: 4px; white-space: nowrap; }
+.rec-menu button { border: 0; background: none; text-align: left; font: 15px var(--font); color: var(--ink); padding: 5px 8px; border-radius: 8px; cursor: pointer; }
+.rec-menu button:hover { background: var(--paper-2); }
+.rec-menu .dg { color: #9b5b5d; }
+.rec-mark { cursor: pointer; }
+.rec-menu .rm-b { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.rec-menu .rm-b span { color: var(--ink-faint); }
+.rec-menu .rm-b button { padding: 4px 8px; text-align: center; }
+.rec-menu .ok { color: #c99a2e; }
 </style>
 </head>
 <body>
@@ -1502,7 +1550,7 @@ function soundGraph(name, ac, out, t0) {
   else if (name === 'wind') [2093, 2349.3, 2637, 3136, 2793.8].forEach((f, i) => { const t = t0 + i * .11 + [.01, .03, 0, .02, .035][i]; tone(f, t, .035, 1.6); tone(f * 2.76, t, .009, .9); tone(f * 5.4, t, .003, .5); });
   else [1567.98, 2093, 2637.02, 3135.96].forEach((f, i) => [0, 1.2].forEach(rep => { const t = t0 + i * .13 + rep; tone(f, t, .16, 1.8, .01); tone(f * 2.76, t, .04, .7, .01); }));
 }
-const SOUND_URL = {};
+const SOUND_URL = {}, SOUND_GAIN = { ting: 1, wind: 1, chime: 1 };
 function wavURL(buf) {
   const d = buf.getChannelData(0), n = d.length, ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
   const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
@@ -1514,7 +1562,7 @@ function wavURL(buf) {
 async function prepareSounds() {
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return;
   for (const name of Object.keys(SOUND_DUR)) {
-    try { const sr = 44100, oc = new OAC(1, Math.ceil(sr * SOUND_DUR[name]), sr); soundGraph(name, oc, oc.destination, .02); SOUND_URL[name] = wavURL(await oc.startRendering()); } catch { }
+    try { const sr = 44100, oc = new OAC(1, Math.ceil(sr * SOUND_DUR[name]), sr); soundGraph(name, oc, oc.destination, .02); const buf = await oc.startRendering(); const d = buf.getChannelData(0); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); const k = pk > 0 ? .9 / pk : 1; for (let i = 0; i < d.length; i++) d[i] *= k; SOUND_GAIN[name] = k; SOUND_URL[name] = wavURL(buf); } catch { }   // hepsi aynı yükseklikte, yüksek
   }
 }
 prepareSounds();
@@ -1527,7 +1575,7 @@ function audioCtx() {
 // ilk dokunuşta ses yolu açılır (tarayıcı kuralı)
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { audioCtx(); } catch { } }, { capture: true, passive: true }));
 function playSound(name) {
-  const direct = () => { try { const ac = audioCtx(); soundGraph(name, ac, ac.destination, ac.currentTime + .03); } catch { } };
+  const direct = () => { try { const ac = audioCtx(), g = ac.createGain(); g.gain.value = SOUND_GAIN[name] || 1; g.connect(ac.destination); soundGraph(name, ac, g, ac.currentTime + .03); } catch { } };
   const url = SOUND_URL[name];
   if (!url) return direct();
   try { const a = new Audio(url); a.volume = 1; const p = a.play(); if (p && p.catch) p.catch(direct); } catch { direct(); }
@@ -1652,7 +1700,7 @@ function lineHTML(k, l, cat) {
   if ((l.att || []).length) icons.push(`<button class="sym" data-act="pins" title="${esc(l.att.map(a => a.name).join(', '))}"><span style="color:#b3667c;display:inline-flex">${icon('pin')}</span></button>${l.att.length > 1 ? `<span class="badge-n">${l.att.length}</span>` : ''}`);
   for (const s of l.icons || []) icons.push(`<button class="sym" data-act="sym" data-key="${s}" title="Silmek için çift tıklayın">${symIcon(s)}</button>`);
   const rec = recOf(l);
-  if (rec) icons.unshift(`<span class="sym rec-mark" title="${esc(repName(rec.every))}${l.recSource ? ' · ilki ' + fmtDot(shiftToWorkday(rec.start)) : ''}">${icon('repeat')}</span>`);
+  if (rec) icons.unshift(`<span class="sym rec-mark" data-tip="${esc(recDesc(rec))}${l.recSource ? ' · ilki ' + fmtDot(shiftToWorkday(rec.start)) : ''}">${icon('repeat')}</span>`);
   let bell = l.alarm ? (l.alarm.on ? 'on' : 'off') : '';
   let alarmTip = l.alarm && l.alarm.on ? `${pad(l.alarm.hour)}:00${l.alarm.note ? ' · ' + l.alarm.note : ''}` : (l.alarm ? 'Alarm kapalı' : rec ? repName(rec.every) : 'Alarm kur');
   const als = lineAlarms(l);
@@ -1785,6 +1833,7 @@ function renderAll() {
   renderTop();
   renderMain();
   refreshWindows();
+  renderKaset();
 }
 const fmtShort = k => { const d = fromKey(k); return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)} ${DAYS[d.getDay()].slice(0, 3)}`; };
 let topW = innerWidth; window.addEventListener('resize', () => { if ((innerWidth < 700) !== (topW < 700) && unlocked) renderTop(); topW = innerWidth; });
@@ -1945,7 +1994,7 @@ document.addEventListener('click', e => {
   const lineEl = b.closest('.line'); if (!lineEl || !b.closest('[data-day]')) return;
   const ctx = lineCtx(b); const act = b.dataset.act;
   if (act === 'bullet' || act === 'sym') return;
-  if (act === 'pins') { const n = notesList().find(x => x.id === ctx.id) || { att: ctx.line.att, ref: ctx.line }; openAttachments(n, 0); return; }
+  if (act === 'pins') { const n = notesList().find(x => x.id === ctx.id) || { att: ctx.line.att, ref: ctx.line }; askPin(() => openAttachments(n, 0)); return; }   // zımba = notun gizli eki: PIN ister
   if (act === 'clip') { const docs = lineDocs(ctx.id); if (docs.length === 1) openPreview(docs[0].id); else openDocPicker(b, docs); return; }
   if (act === 'bell') {
     clearTimeout(clickTimer);
@@ -2075,6 +2124,14 @@ function openMovePop(anchor, k, l) {
 /* Alarm: gün, saat, alarm notu ve tekrar (her ay / 3 ayda bir / 6 ayda bir / her yıl) */
 const REPEATS = [[0, 'Yok'], [-1, 'Hafta içi her gün'], [1, 'Her ay'], [3, '3 ayda bir'], [6, '6 ayda bir'], [12, 'Her yıl']];
 const repName = n => (REPEATS.find(r => r[0] === n) || [0, ''])[1];
+/* "ayın 26'sı" gibi sayı ekleri */
+const dayEk = n => { const u = n % 10, t = n % 100; const m = u ? { 1: "'i", 2: "'si", 3: "'ü", 4: "'ü", 5: "'i", 6: "'sı", 7: "'si", 8: "'i", 9: "'u" }[u] : ({ 10: "'u", 20: "'si", 30: "'u" }[t] || "'u"); return n + m; };
+/* dönen okun etiketi: "Her ay · ayın 26'sı · 15:00 alarm" / "Hafta içi her gün · sessiz" */
+function recDesc(rec) {
+  const d = fromKey(rec.start);
+  const when = rec.every === -1 ? '' : rec.every === 12 ? ` · ${d.getDate()} ${MONTHS[d.getMonth()]}` : ` · ayın ${dayEk(d.getDate())}`;
+  return `${repName(rec.every)}${when} · ${rec.hour == null ? 'sessiz' : pad(rec.hour) + ':00 alarm'}`;
+}
 function openAlarmPop(anchor, k, l) {
   const rec = recOf(l);
   const als = rec ? [] : lineAlarms(l);
@@ -2195,6 +2252,26 @@ function askStopRec(rec, l) {
     save(); renderAll(); undoStatus('Tekrar durduruldu.', snap);
   } }] });
 }
+/* Dönen oka çift tık: döngüyü değiştir / kapat / sil */
+document.addEventListener('dblclick', e => {
+  const m = e.target.closest('.rec-mark'); if (!m) return;
+  const ctx = lineCtx(m); if (!ctx || !ctx.line) return; const l = ctx.line, rec = recOf(l); if (!rec) return;
+  e.preventDefault(); e.stopPropagation();
+  const p = openPop(m, `<div class="rec-menu"><div class="rm-h">${esc(recDesc(rec))}</div><div class="rm-b"><button data-rm="edit" class="ok">Değiştir</button><span>·</span><button data-rm="stop">Kapat</button><span>·</span><button data-rm="del" class="dg">Sil</button></div></div>`);
+  p.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-rm]'); if (!b) return;
+    closePop();
+    if (b.dataset.rm === 'edit') { const bell = ctx.lineEl.querySelector('[data-act="bell"]') || m; openAlarmPop(bell, ctx.k, l); }
+    else if (b.dataset.rm === 'stop') askStopRec(rec, l);
+    else confirmBox({ text: `${esc(rec.text)}<br><br>Bu döngünün geçmiş ve gelecek bütün tekrarları silinsin mi?`, buttons: [{ label: 'Vazgeç' }, { label: 'Sil', danger: true, fn: () => {
+      const snap = takeSnap();
+      for (const d of Object.values(S.days)) d.lines = d.lines.filter(x => x.recId !== rec.id);
+      for (const [, x] of allLines()) if (x.recSource === rec.id) delete x.recSource;
+      S.recurring = (S.recurring || []).filter(r => r !== rec);
+      save(); renderAll(); undoStatus('Döngü silindi.', snap);
+    } }] });
+  });
+}, true);
 /* Tekrarlanan bir satır silinirken sorulur: yalnızca bunu / bunu ve sonrakileri */
 function deleteLineAsk(k, line, done) {
   const rec = line.recId && recOf(line);
@@ -2247,8 +2324,9 @@ function calendarSymbols(k) {
     if (l.toCal) for (const s of l.icons || []) if (!out.includes(s)) out.push(s);
     if ((l.icons || []).includes('moon') && !out.includes('moon')) out.push('moon');
   }
-  const al = allLines().filter(([, l]) => l.alarm && l.alarm.on && l.alarm.date === k).map(([, l]) => l.alarm).sort((a, b) => a.hour - b.hour);
-  const rep = d && d.lines.some(l => l.recId && !l.alarm);
+  const daily = l => (recOf(l) || {}).every === -1;   // günlük tekrarlar takvimde işaretlenmez
+  const al = allLines().filter(([, l]) => l.alarm && l.alarm.on && l.alarm.date === k && !daily(l)).map(([, l]) => l.alarm).sort((a, b) => a.hour - b.hour);
+  const rep = d && d.lines.some(l => l.recId && !l.alarm && !daily(l));
   const tip = al.map(a => `${pad(a.hour)}:00${a.note ? ' · ' + a.note : ''}`).join('\n');
   return out.map(s => symIcon(s)).join('') + (al.length ? `<span class="cal-bell" title="${esc(tip)}">${icon('bell')}</span>` : '') + (rep ? `<span class="cal-rep">${icon('repeat')}</span>` : '');
 }
@@ -2955,7 +3033,8 @@ function noteRowsHTML(list, full = true, openId = null) {
     const cat = catOn(n.date, n.catId);
     const mark = n.kind === 'line' ? `<button class="mark" data-n="go" title="O güne gitmek için çift tıklayın" style="color:${symColor('moon')}">${icon('moon')}</button>` : `<span class="mark" style="color:#8a7290" title="Kendi eklediğim not">${icon('quill')}</span>`;
     const editing = openId === n.id;
-    const pin = n.att.length ? `<button class="pin-btn" data-n="pins" title="${esc(n.att.map(a => a.name).join(', '))}">${icon('pin')}${n.att.length > 1 ? `<span class="badge-n">${n.att.length}</span>` : ''}</button>` : '';
+    const ldocs = n.kind === 'line' ? lineDocs(n.id) : [];
+    const pin = (ldocs.length ? `<span class="note-docs">${ldocs.map(d => `<button class="doc-faint" data-n="doc" data-doc="${d.id}" title="${esc(d.name)}">${icon('clip')}</button>`).join('')}</span>` : '') + (n.att.length ? `<button class="pin-btn" data-n="pins" title="${esc(n.att.map(a => a.name).join(', '))}">${icon('pin')}${n.att.length > 1 ? `<span class="badge-n">${n.att.length}</span>` : ''}</button>` : '');
     return `<div class="note-item" data-note="${n.id}" data-kind="${n.kind}" data-date="${n.date}">
       ${mark}
       <div class="note-line"><span class="d">${n.date}</span><span class="tag" style="--tagbg:${mix(cat.color, '#fff', .55)};--tagink:${inkOf(cat.color)}">${esc(cat.name)}</span>
@@ -2983,6 +3062,7 @@ function noteAction(e) {
   if (e.type === 'dblclick') { if (act === 'go' && n.kind === 'line') goDay(n.date, n.id); return; }
   if (act === 'text') { if (noteEditing !== n.id) startNoteEdit(n.id); return; }
   if (act === 'pins') { openAttachments(n, 0); return; }
+  if (act === 'doc') { openPreview(a.dataset.doc); return; }
   if (act === 'del') {
     if (n.kind === 'line') confirmBox({ text: 'Bu not Notlar\'dan çıkarılsın mı? Ajandadaki satır yerinde kalır.', buttons: [{ label: 'Vazgeç' }, { label: 'Notlar\'dan çıkar', danger: true, fn: () => { const snap = takeSnap(); n.ref.icons = n.ref.icons.filter(x => x !== 'moon'); save(); renderMain(); rerenderNoteHosts(); undoStatus('Not, Notlar\'dan çıkarıldı. Ajandada duruyor.', snap); } }] });
     else sure('Bu not silinsin mi?', () => { const snap = takeSnap(); S.notes = S.notes.filter(x => x !== n.ref); save(); rerenderNoteHosts(); undoStatus('Not silindi.', snap, (n.ref.att || []).map(a => a.fileId)); });
@@ -3205,9 +3285,9 @@ WINDOWS.araclar = {
   render(m) {
     m.tab = m.tab || 'renkler';
     if (!m.pane) {
-      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button></div><div class="ar-pane"></div>`;
+      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button><button data-artab="muzik" style="--c:#a8786a">${icon('music')}Müzik</button></div><div class="ar-pane"></div>`;
       m.pane = { body: $('.ar-pane', m.body), render: () => m.render() };
-      WINDOWS.renkler.bind(m.pane); WINDOWS.simgeler.bind(m.pane);
+      WINDOWS.renkler.bind(m.pane); WINDOWS.simgeler.bind(m.pane); WINDOWS.muzik.bind(m.pane);
       m.body.addEventListener('click', e => { const t = e.target.closest('[data-artab]'); if (t) { m.tab = t.dataset.artab; m.render(); } });
     }
     $$('[data-artab]', m.body).forEach(b => b.classList.toggle('on', b.dataset.artab === m.tab));
@@ -3550,8 +3630,108 @@ WINDOWS.hesap = {
     document.addEventListener('keydown', onKey);
   }
 };
+
+/* ===== Müzik: köşede küçük kaset (YouTube listesi) =====
+   S.settings.music = { list, idx, titles:{id:başlık}, off }. Beklerken silik; üzerine gelince ya da çalarken net.
+   Tuşlar makaraların yerinde (önceki · durdur/oynat · sonraki). Alttaki çizgili kısma basınca liste kasetin üzerine
+   yarı şeffaf açılır; şarkıya çift tıklayınca o çalar; Esc ya da çizgili kısım kapatır. Hareketli bir şey yok. */
+const MUS = { yt: null, ready: false, wantPlay: false, ids: [], playing: false, loading: false };
+const musicSet = () => (S.settings.music = S.settings.music || { list: '', idx: 0, titles: {}, off: false });
+const listIdOf = v => { v = (v || '').trim(); const m = v.match(/[?&]list=([A-Za-z0-9_-]+)/); return m ? m[1] : (/^[A-Za-z0-9_-]{12,}$/.test(v) ? v : ''); };
+const shortT = t => { t = (t || '').replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyrics?|klip|hd|4k)[^\)\]]*[\)\]]/ig, '').trim(); return t.length > 26 ? t.slice(0, 25).trim() + '…' : t; };
+function kasetSVG() {
+  const mu = musicSet(), n = MUS.ids.length, id = MUS.ids[mu.idx || 0];
+  const title = shortT((id && mu.titles[id]) || mu.cur || '');
+  const lbl = n ? `${(mu.idx || 0) + 1} / ${n}${title ? ' · ' + esc(title) : ''}` : (title ? esc(title) : '♪');
+  const INK = '#a8786a';
+  const btn = (x, act, path) => `<g class="kp" data-kp="${act}"><circle cx="${x}" cy="41" r="7.4" fill="#fffdf9" stroke="#dcc3b4" stroke-width=".9"/><path transform="translate(${x} 41)" d="${path}" stroke="${INK}" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+  return `<svg viewBox="-3 -4 106 70" aria-hidden="true"><defs><linearGradient id="kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fcf4ee"/><stop offset="1" stop-color="#f1e1d6"/></linearGradient><linearGradient id="kb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8d2c4"/><stop offset="1" stop-color="#d6b8a6"/></linearGradient></defs>
+    <rect x="2" y="2" width="96" height="58" rx="7" fill="url(#kg)" stroke="url(#kb)" stroke-width="1"/>
+    <rect x="10" y="8" width="80" height="19" rx="3" fill="#fffdf9" stroke="#ecdcd1" stroke-width=".8"/>
+    <text x="50" y="20.5" text-anchor="middle" font-family="Crimson Pro, Georgia, serif" font-style="italic" font-size="8" fill="#9b5b5d">${lbl}</text>
+    ${btn(30, 'prev', 'M2.6 -3L-1.6 0l4.2 3zM-2.6 -3v6')}${btn(50, 'play', MUS.playing ? 'M-1.4 -3v6M1.4 -3v6' : 'M-1.6 -3.2L2.8 0l-4.4 3.2z')}${btn(70, 'next', 'M-2.6 -3L1.6 0l-4.2 3zM2.6 -3v6')}
+    <g class="kp" data-kp="list"><rect x="8" y="50" width="84" height="10" fill="transparent"/><path d="M8 58 l5 -6 h74 l5 6" fill="none" stroke="#e6d3c6" stroke-width=".8"/>
+    <path d="M24 55.5h52" stroke="#e6d3c6" stroke-width=".6" stroke-dasharray="2 2"/></g></svg>`;
+}
+function renderKaset() {
+  const mu = S && S.settings ? musicSet() : null;
+  let k = $('#kaset');
+  if (!mu || !mu.list || mu.off) { if (k) k.hidden = true; return; }
+  if (!k) {
+    k = document.createElement('div'); k.id = 'kaset';
+    k.innerHTML = `<div class="ks-list" hidden><div class="ks-yt"><div id="ksPlayer"></div></div><div class="ks-songs"></div></div><button class="ks-x" data-kp="close">${icon('close')}</button><div class="ks-tape"></div>`;
+    document.body.appendChild(k);
+    k.addEventListener('click', e => { const b = e.target.closest('[data-kp]'); if (b) kasetAct(b.dataset.kp); });
+    k.addEventListener('dblclick', e => { const s = e.target.closest('[data-ksi]'); if (s) musicPlayAt(Number(s.dataset.ksi)); });
+  }
+  k.hidden = false; k.classList.toggle('playing', MUS.playing);
+  $('.ks-tape', k).innerHTML = kasetSVG();
+  if (!$('.ks-list', k).hidden) renderSongs();
+}
+function renderSongs() {
+  const mu = musicSet(), box = $('#kaset .ks-songs'); if (!box) return;
+  box.innerHTML = MUS.ids.length ? MUS.ids.map((id, i) => `<div class="ks-s ${i === (mu.idx || 0) ? 'on' : ''}" data-ksi="${i}">${i + 1} · ${esc(shortT(mu.titles[id]) || 'Şarkı ' + (i + 1))}${i === (mu.idx || 0) && MUS.playing ? ' ♪' : ''}</div>`).join('') : '<div class="ks-s">…</div>';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const l = $('#kaset .ks-list'); if (l && !l.hidden) { l.hidden = true; e.stopPropagation(); } } }, true);
+function kasetAct(a) {
+  if (a === 'close') { musicSet().off = true; musicStop(); save(); return; }   // sıkılınca: Araçlar > Müzik'ten yeniden açılır
+  if (a === 'list') { const l = $('#kaset .ks-list'); l.hidden = !l.hidden; if (!l.hidden) { musicEnsure(); renderSongs(); } return; }
+  if (!MUS.ready) { MUS.wantPlay = a === 'play' || a === 'next' || a === 'prev'; MUS.pendingAct = a; musicEnsure(); return; }
+  const p = MUS.yt;
+  if (a === 'play') { if (MUS.playing) p.pauseVideo(); else p.playVideo(); }
+  else if (a === 'next') p.nextVideo();
+  else if (a === 'prev') p.previousVideo();
+}
+function musicPlayAt(i) { if (!MUS.ready) { musicSet().idx = i; MUS.wantPlay = true; musicEnsure(); return; } MUS.yt.playVideoAt(i); }
+function musicEnsure() {
+  if (MUS.ready || MUS.loading) return; MUS.loading = true;
+  const go = () => {
+    const mu = musicSet();
+    MUS.yt = new YT.Player('ksPlayer', { width: 240, height: 135, host: 'https://www.youtube-nocookie.com',
+      playerVars: { listType: 'playlist', list: mu.list, index: mu.idx || 0, rel: 0, modestbranding: 1, playsinline: 1 },
+      events: {
+        onReady: () => { MUS.ready = true; MUS.loading = false; setTimeout(musicSync, 600);
+          if (MUS.wantPlay) { MUS.wantPlay = false; const a = MUS.pendingAct; if (a === 'next') MUS.yt.nextVideo(); else if (a === 'prev') MUS.yt.previousVideo(); else MUS.yt.playVideoAt(mu.idx || 0); } },
+        onStateChange: ev => { MUS.playing = ev.data === 1; musicSync(); },
+        onError: () => { setTimeout(() => MUS.yt && MUS.yt.nextVideo(), 800); }   // gömülmesine izin verilmeyen şarkı atlanır
+      } });
+  };
+  if (window.YT && YT.Player) return go();
+  window.onYouTubeIframeAPIReady = go;
+  const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => { MUS.loading = false; status('Müzik açılamadı; internet bağlantısını kontrol edin.'); }; document.head.appendChild(sc);
+}
+async function musicSync() {
+  if (!MUS.yt || !MUS.ready) return;
+  const mu = musicSet(), ids = MUS.yt.getPlaylist() || [], i = MUS.yt.getPlaylistIndex();
+  if (ids.length) MUS.ids = ids;
+  if (i >= 0) mu.idx = i;
+  const vd = MUS.yt.getVideoData && MUS.yt.getVideoData(); if (vd && vd.video_id && vd.title) { mu.titles[vd.video_id] = vd.title; mu.cur = vd.title; }
+  renderKaset();
+  // listedeki adlar (bir kez, sırayla)
+  if (!MUS.fetching) { MUS.fetching = true;
+    for (const id of MUS.ids) { if (mu.titles[id]) continue;
+      try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}`); if (r.ok) { const j = await r.json(); mu.titles[id] = j.title; renderSongs(); } } catch { break; } }
+    MUS.fetching = false; save(); }
+}
+function musicStop() { try { MUS.yt && MUS.yt.destroy(); } catch { } MUS.yt = null; MUS.ready = false; MUS.loading = false; MUS.playing = false; MUS.ids = []; const k = $('#kaset'); if (k) k.remove(); }
+WINDOWS.muzik = {
+  render(m) {
+    const mu = musicSet();
+    m.body.innerHTML = `<div class="mz"><label class="mz-l">YouTube listesi<input type="text" class="mz-in" value="${esc(mu.list ? 'https://www.youtube.com/playlist?list=' + mu.list : '')}" placeholder="https://www.youtube.com/playlist?list=…"></label>
+      <div class="mz-b"><button class="btn small" data-mz="save">Kaydet</button>${mu.list ? `<button class="btn small ghost" data-mz="toggle">${mu.off ? 'Kaseti göster' : 'Kaseti kaldır'}</button>` : ''}</div></div>`;
+  },
+  bind(m) {
+    m.body.addEventListener('click', e => {
+      const b = e.target.closest('[data-mz]'); if (!b) return;
+      const mu = musicSet();
+      if (b.dataset.mz === 'save') { const id = listIdOf($('.mz-in', m.body).value); if (!id) { status('Bağlantıda liste bulunamadı.'); return; } if (id !== mu.list) { musicStop(); Object.assign(mu, { list: id, idx: 0, titles: {}, cur: '' }); } mu.off = false; save(); renderKaset(); status('Kaset hazır.'); }
+      else { mu.off = !mu.off; if (mu.off) musicStop(); save(); renderKaset(); }
+      m.render();
+    });
+  }
+};
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '05.11.2026 · 6';
+const APP_VERSION = '06.11.2026 · 5';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4477,7 +4657,7 @@ async function boot() {
   // saat: gün dönümü, alarmlar, otomatik kilit
   setInterval(() => {
     const tk = todayKey();
-    if (tk !== UI.today) { const wasToday = UI.day === UI.today; UI.today = tk; if (wasToday) UI.day = tk; if (unlocked) { renderAll(); dailyNotices(); } }
+    if (tk !== UI.today) { pinnedAlarms = []; lockedAlarms = []; const sl = $('#statusLine'); if (sl && sl.dataset.kind === 'alarm') sl.classList.remove('show'); const wasToday = UI.day === UI.today; UI.today = tk; if (wasToday) UI.day = tk; if (unlocked) { renderAll(); dailyNotices(); } }
     if (AUTH) checkAlarms();   // kilitliyken ve çıkış yapılmışken de çalar
     checkLeftovers(); checkDueTasks();
     if (unlocked) {
