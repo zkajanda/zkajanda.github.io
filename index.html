@@ -1109,6 +1109,21 @@ body.has-side #kaset { right: calc(var(--side-w, 400px) + 26px); }
 .rec-menu .rm-b span { color: var(--ink-faint); }
 .rec-menu .rm-b button { padding: 4px 8px; text-align: center; }
 .rec-menu .ok { color: #c99a2e; }
+
+/* 06.11 · 6: şarkı listesi */
+#kaset .ks-list { overflow-x: hidden; box-sizing: border-box; width: 260px; }
+#kaset .ks-s { display: flex; align-items: center; gap: 4px; }
+#kaset .ks-s span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#kaset .ks-s.bad span { text-decoration: line-through; opacity: .55; }
+#kaset .ks-sx { display: flex; border: 0; background: none; padding: 2px; cursor: pointer; color: var(--ink-faint); opacity: 0; border-radius: 6px; }
+#kaset .ks-s:hover .ks-sx { opacity: 1; }
+#kaset .ks-sx .ic { width: 11px; height: 11px; }
+.mz-row { display: flex; gap: 8px; align-items: center; }
+.mz-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; border-top: 1px dashed var(--rule); padding-top: 6px; }
+.mz-s { display: flex; align-items: center; gap: 6px; font: 14px var(--font); color: var(--ink-soft); }
+.mz-s span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mz-s.bad span { text-decoration: line-through; opacity: .55; }
+.mz-s .icon-btn .ic { width: 12px; height: 12px; }
 </style>
 </head>
 <body>
@@ -3631,24 +3646,26 @@ WINDOWS.hesap = {
   }
 };
 
-/* ===== Müzik: köşede küçük kaset (YouTube listesi) =====
-   S.settings.music = { list, idx, titles:{id:başlık}, off }. Beklerken silik; üzerine gelince ya da çalarken net.
-   Tuşlar makaraların yerinde (önceki · durdur/oynat · sonraki). Alttaki çizgili kısma basınca liste kasetin üzerine
-   yarı şeffaf açılır; şarkıya çift tıklayınca o çalar; Esc ya da çizgili kısım kapatır. Hareketli bir şey yok. */
-const MUS = { yt: null, ready: false, wantPlay: false, ids: [], playing: false, loading: false };
-const musicSet = () => (S.settings.music = S.settings.music || { list: '', idx: 0, titles: {}, off: false });
-const listIdOf = v => { v = (v || '').trim(); const m = v.match(/[?&]list=([A-Za-z0-9_-]+)/); return m ? m[1] : (/^[A-Za-z0-9_-]{12,}$/.test(v) ? v : ''); };
-const shortT = t => { t = (t || '').replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyrics?|klip|hd|4k)[^\)\]]*[\)\]]/ig, '').trim(); return t.length > 26 ? t.slice(0, 25).trim() + '…' : t; };
+/* ===== Müzik: köşede küçük kaset =====
+   Şarkılar tek tek eklenir (YouTube şarkı bağlantısı; kanal ya da liste gerekmez): S.settings.music = { songs:[{id,title,bad}], idx, off }.
+   Beklerken silik; üzerine gelince ya da çalarken net. Tuşlar makaraların yerinde (önceki · oynat/durdur · sonraki).
+   Alttaki çizgili kısma basınca liste kasetin üzerine yarı şeffaf açılır; şarkıya çift tık çalar, × listeden çıkarır; Esc kapatır.
+   Başka sitelerde çalınmasına izin verilmeyen şarkıda bunu söyler ve sonrakine geçer. Hareketli bir şey yok. */
+const MUS = { yt: null, ready: false, loading: false, playing: false, wantPlay: false };
+const musicSet = () => { const m = (S.settings.music = S.settings.music || {}); m.songs = m.songs || []; m.idx = Math.min(m.idx || 0, Math.max(0, m.songs.length - 1)); return m; };
+const videoIdOf = v => { v = (v || '').trim(); const m = v.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : (/^[A-Za-z0-9_-]{11}$/.test(v) ? v : ''); };
+const shortT = (t, n = 26) => { t = (t || '').replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyrics?|klip|hd|4k|music|prod)[^\)\]]*[\)\]]/ig, '').trim(); return t.length > n ? t.slice(0, n - 1).trim() + '…' : t; };
+async function songTitle(id) { try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}`); if (r.ok) return (await r.json()).title || ''; } catch { } return ''; }
 function kasetSVG() {
-  const mu = musicSet(), n = MUS.ids.length, id = MUS.ids[mu.idx || 0];
-  const title = shortT((id && mu.titles[id]) || mu.cur || '');
-  const lbl = n ? `${(mu.idx || 0) + 1} / ${n}${title ? ' · ' + esc(title) : ''}` : (title ? esc(title) : '♪');
+  const mu = musicSet(), n = mu.songs.length, song = mu.songs[mu.idx];
+  const title = shortT(song && song.title, 15);
+  const lbl = n ? `${mu.idx + 1} / ${n}${title ? ' · ' + esc(title) : ''}` : '♪';
   const INK = '#a8786a';
   const btn = (x, act, path) => `<g class="kp" data-kp="${act}"><circle cx="${x}" cy="41" r="7.4" fill="#fffdf9" stroke="#dcc3b4" stroke-width=".9"/><path transform="translate(${x} 41)" d="${path}" stroke="${INK}" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`;
   return `<svg viewBox="-3 -4 106 70" aria-hidden="true"><defs><linearGradient id="kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fcf4ee"/><stop offset="1" stop-color="#f1e1d6"/></linearGradient><linearGradient id="kb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8d2c4"/><stop offset="1" stop-color="#d6b8a6"/></linearGradient></defs>
     <rect x="2" y="2" width="96" height="58" rx="7" fill="url(#kg)" stroke="url(#kb)" stroke-width="1"/>
     <rect x="10" y="8" width="80" height="19" rx="3" fill="#fffdf9" stroke="#ecdcd1" stroke-width=".8"/>
-    <text x="50" y="20.5" text-anchor="middle" font-family="Crimson Pro, Georgia, serif" font-style="italic" font-size="8" fill="#9b5b5d">${lbl}</text>
+    <text x="50" y="20.5" text-anchor="middle" font-family="Crimson Pro, Georgia, serif" font-style="italic" font-size="8" fill="#9b5b5d"${lbl.length > 22 ? ' textLength="74" lengthAdjust="spacingAndGlyphs"' : ''}>${lbl}</text>
     ${btn(30, 'prev', 'M2.6 -3L-1.6 0l4.2 3zM-2.6 -3v6')}${btn(50, 'play', MUS.playing ? 'M-1.4 -3v6M1.4 -3v6' : 'M-1.6 -3.2L2.8 0l-4.4 3.2z')}${btn(70, 'next', 'M-2.6 -3L1.6 0l-4.2 3zM2.6 -3v6')}
     <g class="kp" data-kp="list"><rect x="8" y="50" width="84" height="10" fill="transparent"/><path d="M8 58 l5 -6 h74 l5 6" fill="none" stroke="#e6d3c6" stroke-width=".8"/>
     <path d="M24 55.5h52" stroke="#e6d3c6" stroke-width=".6" stroke-dasharray="2 2"/></g></svg>`;
@@ -3656,82 +3673,103 @@ function kasetSVG() {
 function renderKaset() {
   const mu = S && S.settings ? musicSet() : null;
   let k = $('#kaset');
-  if (!mu || !mu.list || mu.off) { if (k) k.hidden = true; return; }
+  if (!mu || !mu.songs.length || mu.off) { if (k) k.hidden = true; return; }
   if (!k) {
     k = document.createElement('div'); k.id = 'kaset';
     k.innerHTML = `<div class="ks-list" hidden><div class="ks-yt"><div id="ksPlayer"></div></div><div class="ks-songs"></div></div><button class="ks-x" data-kp="close">${icon('close')}</button><div class="ks-tape"></div>`;
     document.body.appendChild(k);
-    k.addEventListener('click', e => { const b = e.target.closest('[data-kp]'); if (b) kasetAct(b.dataset.kp); });
-    k.addEventListener('dblclick', e => { const s = e.target.closest('[data-ksi]'); if (s) musicPlayAt(Number(s.dataset.ksi)); });
+    k.addEventListener('click', e => { const x = e.target.closest('[data-ksx]'); if (x) { musicRemove(Number(x.dataset.ksx)); return; } const b = e.target.closest('[data-kp]'); if (b) kasetAct(b.dataset.kp); });
+    k.addEventListener('dblclick', e => { if (e.target.closest('[data-ksx]')) return; const s = e.target.closest('[data-ksi]'); if (s) musicPlayAt(Number(s.dataset.ksi)); });
   }
   k.hidden = false; k.classList.toggle('playing', MUS.playing);
   $('.ks-tape', k).innerHTML = kasetSVG();
   if (!$('.ks-list', k).hidden) renderSongs();
+  musicEnsure();   // oynatıcı önceden hazırlanır: tuşa basınca hemen çalsın
 }
 function renderSongs() {
   const mu = musicSet(), box = $('#kaset .ks-songs'); if (!box) return;
-  box.innerHTML = MUS.ids.length ? MUS.ids.map((id, i) => `<div class="ks-s ${i === (mu.idx || 0) ? 'on' : ''}" data-ksi="${i}">${i + 1} · ${esc(shortT(mu.titles[id]) || 'Şarkı ' + (i + 1))}${i === (mu.idx || 0) && MUS.playing ? ' ♪' : ''}</div>`).join('') : '<div class="ks-s">…</div>';
+  box.innerHTML = mu.songs.map((s, i) => `<div class="ks-s ${i === mu.idx ? 'on' : ''} ${s.bad ? 'bad' : ''}" data-ksi="${i}"><span>${i + 1} · ${esc(shortT(s.title) || 'Şarkı ' + (i + 1))}${i === mu.idx && MUS.playing ? ' ♪' : ''}</span><button class="ks-sx" data-ksx="${i}">${icon('close')}</button></div>`).join('');
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { const l = $('#kaset .ks-list'); if (l && !l.hidden) { l.hidden = true; e.stopPropagation(); } } }, true);
 function kasetAct(a) {
-  if (a === 'close') { musicSet().off = true; musicStop(); save(); return; }   // sıkılınca: Araçlar > Müzik'ten yeniden açılır
-  if (a === 'list') { const l = $('#kaset .ks-list'); l.hidden = !l.hidden; if (!l.hidden) { musicEnsure(); renderSongs(); } return; }
-  if (!MUS.ready) { MUS.wantPlay = a === 'play' || a === 'next' || a === 'prev'; MUS.pendingAct = a; musicEnsure(); return; }
-  const p = MUS.yt;
-  if (a === 'play') { if (MUS.playing) p.pauseVideo(); else p.playVideo(); }
-  else if (a === 'next') p.nextVideo();
-  else if (a === 'prev') p.previousVideo();
+  const mu = musicSet();
+  if (a === 'close') { mu.off = true; musicStop(); save(); return; }   // sıkılınca: Araçlar > Müzik'ten yeniden açılır
+  if (a === 'list') { const l = $('#kaset .ks-list'); l.hidden = !l.hidden; if (!l.hidden) renderSongs(); return; }
+  if (a === 'play') { if (!MUS.ready) { MUS.wantPlay = true; musicEnsure(); return; } if (MUS.playing) MUS.yt.pauseVideo(); else { const st = MUS.yt.getPlayerState(); if (st === 2) MUS.yt.playVideo(); else musicPlayAt(mu.idx); } return; }
+  if (a === 'next') musicPlayAt((mu.idx + 1) % mu.songs.length);
+  if (a === 'prev') musicPlayAt((mu.idx - 1 + mu.songs.length) % mu.songs.length);
 }
-function musicPlayAt(i) { if (!MUS.ready) { musicSet().idx = i; MUS.wantPlay = true; musicEnsure(); return; } MUS.yt.playVideoAt(i); }
+function musicPlayAt(i) {
+  const mu = musicSet(); if (!mu.songs.length) return;
+  mu.idx = i; save(); renderKaset();
+  if (!MUS.ready) { MUS.wantPlay = true; musicEnsure(); return; }
+  MUS.yt.loadVideoById(mu.songs[i].id);
+}
+function musicRemove(i) {
+  const mu = musicSet(); const was = mu.idx === i;
+  mu.songs.splice(i, 1); if (mu.idx > i || mu.idx >= mu.songs.length) mu.idx = Math.max(0, mu.idx - 1);
+  save(); if (!mu.songs.length) { musicStop(); refreshWindows(); return; }
+  if (was && MUS.playing) musicPlayAt(mu.idx); else renderKaset();
+  refreshWindows();
+}
 function musicEnsure() {
-  if (MUS.ready || MUS.loading) return; MUS.loading = true;
+  if (MUS.ready || MUS.loading || !ON_LINE()) return;
+  const mu = musicSet(); if (!mu.songs.length || !$('#ksPlayer')) return;
+  MUS.loading = true;
   const go = () => {
-    const mu = musicSet();
-    MUS.yt = new YT.Player('ksPlayer', { width: 240, height: 135, host: 'https://www.youtube-nocookie.com',
-      playerVars: { listType: 'playlist', list: mu.list, index: mu.idx || 0, rel: 0, modestbranding: 1, playsinline: 1 },
+    MUS.yt = new YT.Player('ksPlayer', { width: 240, height: 135, videoId: mu.songs[mu.idx].id, host: 'https://www.youtube-nocookie.com',
+      playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
       events: {
-        onReady: () => { MUS.ready = true; MUS.loading = false; setTimeout(musicSync, 600);
-          if (MUS.wantPlay) { MUS.wantPlay = false; const a = MUS.pendingAct; if (a === 'next') MUS.yt.nextVideo(); else if (a === 'prev') MUS.yt.previousVideo(); else MUS.yt.playVideoAt(mu.idx || 0); } },
-        onStateChange: ev => { MUS.playing = ev.data === 1; musicSync(); },
-        onError: () => { setTimeout(() => MUS.yt && MUS.yt.nextVideo(), 800); }   // gömülmesine izin verilmeyen şarkı atlanır
+        onReady: () => { MUS.ready = true; MUS.loading = false; if (MUS.wantPlay) { MUS.wantPlay = false; MUS.yt.playVideo(); } },
+        onStateChange: ev => {
+          MUS.playing = ev.data === 1;
+          const vd = MUS.yt.getVideoData && MUS.yt.getVideoData(), cur = musicSet().songs[musicSet().idx];
+          if (cur && vd && vd.title && !cur.title) { cur.title = vd.title; save(); }
+          if (ev.data === 1 && cur && cur.bad) { delete cur.bad; save(); }
+          if (ev.data === 0) { const m = musicSet(); musicPlayAt((m.idx + 1) % m.songs.length); return; }   // bitti: sonraki
+          renderKaset();
+        },
+        onError: ev => {
+          const m = musicSet(), cur = m.songs[m.idx]; if (!cur) return;
+          cur.bad = true; save();
+          status(ev.data === 101 || ev.data === 150 ? `Bu şarkı burada çalınamıyor: ${esc(shortT(cur.title) || 'Şarkı ' + (m.idx + 1))}` : `Şarkı bulunamadı: ${esc(shortT(cur.title) || 'Şarkı ' + (m.idx + 1))}`);
+          if (m.songs.some(s => !s.bad)) setTimeout(() => { let j = m.idx; for (let n = 0; n < m.songs.length; n++) { j = (j + 1) % m.songs.length; if (!m.songs[j].bad) break; } musicPlayAt(j); }, 1500);
+          renderKaset();
+        }
       } });
   };
   if (window.YT && YT.Player) return go();
-  window.onYouTubeIframeAPIReady = go;
-  const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => { MUS.loading = false; status('Müzik açılamadı; internet bağlantısını kontrol edin.'); }; document.head.appendChild(sc);
+  const prev = window.onYouTubeIframeAPIReady; window.onYouTubeIframeAPIReady = () => { prev && prev(); go(); };
+  if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) { const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api'; sc.onerror = () => { MUS.loading = false; }; document.head.appendChild(sc); }
 }
-async function musicSync() {
-  if (!MUS.yt || !MUS.ready) return;
-  const mu = musicSet(), ids = MUS.yt.getPlaylist() || [], i = MUS.yt.getPlaylistIndex();
-  if (ids.length) MUS.ids = ids;
-  if (i >= 0) mu.idx = i;
-  const vd = MUS.yt.getVideoData && MUS.yt.getVideoData(); if (vd && vd.video_id && vd.title) { mu.titles[vd.video_id] = vd.title; mu.cur = vd.title; }
-  renderKaset();
-  // listedeki adlar (bir kez, sırayla)
-  if (!MUS.fetching) { MUS.fetching = true;
-    for (const id of MUS.ids) { if (mu.titles[id]) continue;
-      try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + id)}`); if (r.ok) { const j = await r.json(); mu.titles[id] = j.title; renderSongs(); } } catch { break; } }
-    MUS.fetching = false; save(); }
-}
-function musicStop() { try { MUS.yt && MUS.yt.destroy(); } catch { } MUS.yt = null; MUS.ready = false; MUS.loading = false; MUS.playing = false; MUS.ids = []; const k = $('#kaset'); if (k) k.remove(); }
+const ON_LINE = () => navigator.onLine !== false;
+function musicStop() { try { MUS.yt && MUS.yt.destroy(); } catch { } Object.assign(MUS, { yt: null, ready: false, loading: false, playing: false, wantPlay: false }); const k = $('#kaset'); if (k) k.remove(); }
 WINDOWS.muzik = {
   render(m) {
     const mu = musicSet();
-    m.body.innerHTML = `<div class="mz"><label class="mz-l">YouTube listesi<input type="text" class="mz-in" value="${esc(mu.list ? 'https://www.youtube.com/playlist?list=' + mu.list : '')}" placeholder="https://www.youtube.com/playlist?list=…"></label>
-      <div class="mz-b"><button class="btn small" data-mz="save">Kaydet</button>${mu.list ? `<button class="btn small ghost" data-mz="toggle">${mu.off ? 'Kaseti göster' : 'Kaseti kaldır'}</button>` : ''}</div></div>`;
+    m.body.innerHTML = `<div class="mz"><label class="mz-l">YouTube şarkı bağlantısı<div class="mz-row"><input type="text" class="mz-in" placeholder="https://youtu.be/…"><button class="btn small" data-mz="add">Ekle</button></div></label>
+      ${mu.songs.length ? `<div class="mz-list">${mu.songs.map((s, i) => `<div class="mz-s ${s.bad ? 'bad' : ''}"><span>${i + 1} · ${esc(shortT(s.title) || s.id)}</span><button class="icon-btn" data-mzx="${i}">${icon('close')}</button></div>`).join('')}</div>
+      <div class="mz-b"><button class="btn small ghost" data-mz="toggle">${mu.off ? 'Kaseti göster' : 'Kaseti kaldır'}</button></div>` : ''}</div>`;
+    const inp = $('.mz-in', m.body); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('[data-mz="add"]', m.body).click(); } });
   },
   bind(m) {
-    m.body.addEventListener('click', e => {
+    m.body.addEventListener('click', async e => {
+      const x = e.target.closest('[data-mzx]'); if (x) { musicRemove(Number(x.dataset.mzx)); m.render(); return; }
       const b = e.target.closest('[data-mz]'); if (!b) return;
       const mu = musicSet();
-      if (b.dataset.mz === 'save') { const id = listIdOf($('.mz-in', m.body).value); if (!id) { status('Bağlantıda liste bulunamadı.'); return; } if (id !== mu.list) { musicStop(); Object.assign(mu, { list: id, idx: 0, titles: {}, cur: '' }); } mu.off = false; save(); renderKaset(); status('Kaset hazır.'); }
-      else { mu.off = !mu.off; if (mu.off) musicStop(); save(); renderKaset(); }
-      m.render();
+      if (b.dataset.mz === 'add') {
+        const raw = $('.mz-in', m.body).value, id = videoIdOf(raw);
+        if (!id) { status(/list=/.test(raw) ? 'Bu bir liste bağlantısı; şarkının kendi bağlantısını yapıştırın (Paylaş → Kopyala).' : 'Bağlantı eksik görünüyor; YouTube\'da Paylaş → Kopyala ile alın.'); return; }
+        if (mu.songs.some(s => s.id === id)) { status('Bu şarkı zaten listede.'); return; }
+        const song = { id, title: '' }; mu.songs.push(song); mu.off = false; save(); renderKaset(); m.render();
+        song.title = await songTitle(id); save(); renderKaset(); m.render();
+        status(song.title ? `Eklendi: ${esc(shortT(song.title))}` : 'Şarkı eklendi.');
+      } else { mu.off = !mu.off; if (mu.off) musicStop(); save(); renderKaset(); m.render(); }
     });
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '06.11.2026 · 5';
+const APP_VERSION = '06.11.2026 · 6';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
