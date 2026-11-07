@@ -1124,6 +1124,13 @@ body.has-side #kaset { right: calc(var(--side-w, 400px) + 26px); }
 .mz-s span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mz-s.bad span { text-decoration: line-through; opacity: .55; }
 .mz-s .icon-btn .ic { width: 12px; height: 12px; }
+
+/* tekrarlayan alarm: sonraki günler */
+.al-next { margin-bottom: 6px; }
+.al-next .al-h { font: italic 12.5px var(--font); color: var(--ink-faint); padding: 0 4px 4px; }
+.al-go { width: 100%; border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.al-go:hover { background: var(--paper-2); }
+.mv-alt { display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px dashed var(--rule); padding-top: 8px; }
 </style>
 </head>
 <body>
@@ -1724,6 +1731,7 @@ function lineHTML(k, l, cat) {
     bell = on.length ? 'on' : 'off';
     alarmTip = on.length ? on.map(x => `${fmtDot(x.a.date)} · ${pad(x.a.hour)}:00${x.a.note ? ' · ' + x.a.note : ''}`).join('\n') : 'Alarm kapalı';
   }
+  if (rec && rec.hour != null) alarmTip = rec.every === -1 ? `Hafta içi her gün · ${pad(rec.hour)}:00` : `${pad(rec.hour)}:00 · ${recNext(rec, 4).map(k => fmtDot(k).slice(0, 5)).join(' · ')}`;
   const cls = ['line'];
   if (l.color) cls.push('hl');
   if (l.done) cls.push('done');
@@ -2117,7 +2125,29 @@ function mountMiniCal(box, startKey, selKey, onPick) {
 }
 
 /* Aktar */
-function openMovePop(anchor, k, l) {
+/* Görevden gelen satırın günü yanlış seçildiyse: satır bütünüyle (ferman, alarm, ekler) yeni güne taşınır, eski günde iz kalmaz */
+function changeLineDay(k, l, target) {
+  const od = S.days[k]; if (!od) return;
+  od.lines = od.lines.filter(x => x !== l); dayRec(target, true).lines.push(l);
+  if (l.alarm && l.alarm.date === k) Object.assign(l.alarm, { date: target, fired: false, pre: false, late: false, setAt: Date.now() });
+  for (const d of S.docs) if (d.line && d.line.id === l.id && d.line.date === k) { d.line.date = target; d.date = target; }
+  const t = (S.tasks || []).find(x => x.done && x.done.lineId === l.id);
+  if (t) { t.done.day = target; delete t.dueWarned; }
+  save(); renderAll();
+  toast(`${fmtDot(target)} gününe alındı.`, { label: 'O güne git', fn: () => goDay(target, l.id) });
+  if (t && t.ack && t.ack.sent && t.mail) {   // Sedat Bey'e eski tarih gitmişti: düzeltme sorulur
+    const cat = catOn(target, l.catId);
+    askMailCard(t, 'fix', { head: longDay(UI.today), line: l.text, stat: `Bitiş tarihi güncellendi: ${longDay(target)}`, color: cat ? cat.color : '#d9b8bf', done: false, fix: true });
+  }
+}
+function openMovePop(anchor, k, l, aktar = false) {
+  const task = !aktar && l.taskId && (S.tasks || []).find(x => x.id === l.taskId && x.done);
+  if (task) {
+    const p = openPop(anchor, `<h4>Günü değiştir</h4><div class="mc"></div><div class="mv-alt"><button class="btn small ghost" data-mv="aktar">Aktar</button></div>`, 'mini-cal');
+    mountMiniCal($('.mc', p), k, k, target => { if (target === k) { closePop(); return; } closePop(); changeLineDay(k, l, target); });
+    $('[data-mv="aktar"]', p).onclick = () => openMovePop(anchor, k, l, true);
+    return;
+  }
   const p = openPop(anchor, `<h4>Hangi güne aktarılsın?</h4><div class="mc"></div>`, 'mini-cal');
   mountMiniCal($('.mc', p), l.movedTo || addDays(k, 1), l.movedTo, target => {
     if (target === k) { toast('Satır zaten bu günde.'); return; }
@@ -2147,6 +2177,11 @@ function recDesc(rec) {
   const when = rec.every === -1 ? '' : rec.every === 12 ? ` · ${d.getDate()} ${MONTHS[d.getMonth()]}` : ` · ayın ${dayEk(d.getDate())}`;
   return `${repName(rec.every)}${when} · ${rec.hour == null ? 'sessiz' : pad(rec.hour) + ':00 alarm'}`;
 }
+/* tekrarlayan alarmın sıradaki gerçek günleri (kaymış hâliyle), bugünden itibaren */
+function findLineOnDay(d, rec) { const x = (S.days[d] || { lines: [] }).lines.find(y => y.recId === rec.id); return x ? x.id : undefined; }
+function recNext(rec, n) {
+  return [...new Set(allLines().filter(([d, x]) => x.recId === rec.id && d >= UI.today).map(([d]) => d))].sort().slice(0, n);
+}
 function openAlarmPop(anchor, k, l) {
   const rec = recOf(l);
   const als = rec ? [] : lineAlarms(l);
@@ -2157,12 +2192,15 @@ function openAlarmPop(anchor, k, l) {
   const every = rec ? rec.every : 0, silent = rec ? rec.hour == null : false;
   const hours = Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${h === hour ? 'selected' : ''}>${pad(h)}:00</option>`).join('');
   const listHTML = als.length ? `<div class="al-list">${als.map((x, i) => `<div class="al-row ${x.a.on ? '' : 'off'}">${icon('bell')}<span>${fmtDot(x.a.date)} · ${pad(x.a.hour)}:00${x.a.note ? ' · ' + esc(x.a.note) : ''}</span><button class="icon-btn" data-alx="${i}" title="Bu alarmı sil">×</button></div>`).join('')}</div>` : '';
-  const p = openPop(anchor, `${listHTML}<h4>${als.length ? 'Yeni alarm' : 'Alarm hangi gün ve saatte çalsın?'}</h4><div class="mc"></div>
+  const nextHTML = rec && rec.every !== -1 ? `<div class="al-list al-next"><div class="al-h">Sonraki tekrarlar</div>${recNext(rec, 4).map(d => `<button class="al-row al-go" data-algo="${d}">${icon(rec.hour == null ? 'repeat' : 'bell')}<span>${fmtDot(d)} · ${DAYS[fromKey(d).getDay()]}${rec.hour != null ? ' · ' + pad(rec.hour) + ':00' : ''}</span></button>`).join('')}</div>`
+    : rec ? `<div class="al-list al-next"><div class="al-h">Hafta içi her gün${rec.hour != null ? ' · ' + pad(rec.hour) + ':00' : ''}</div></div>` : '';
+  const p = openPop(anchor, `${nextHTML}${listHTML}<h4>${als.length ? 'Yeni alarm' : 'Alarm hangi gün ve saatte çalsın?'}</h4><div class="mc"></div>
     <div class="row"><label class="small-note">Saat</label><select class="hour">${hours}</select></div>
     <div class="row"><label class="small-note">Tekrar</label><select class="rep">${REPEATS.map(([n, t]) => `<option value="${n}" ${n === every ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
     <label class="row silent ${every ? '' : 'hidden'}"><input type="checkbox" class="sil" ${silent ? 'checked' : ''}> <span class="small-note">Alarm çalmasın</span></label>
     <input type="text" class="note" maxlength="80" placeholder="Alarm notu" value="${esc(note)}">
     <div class="row btns">${rec ? '<button class="btn small ghost stop">Tekrarı durdur</button>' : ''}<button class="btn small set">${rec ? 'Güncelle' : als.length ? 'Alarm ekle' : 'Alarmı kur'}</button></div>`, 'alarm-pop');
+  p.addEventListener('click', e => { const g = e.target.closest('[data-algo]'); if (g) { closePop(); goDay(g.dataset.algo, findLineOnDay(g.dataset.algo, rec)); return; } });
   p.addEventListener('click', e => { const x = e.target.closest('[data-alx]'); if (!x) return; removeAlarm(l, als[Number(x.dataset.alx)]); save(); closePop(); renderMain(); refreshWindows(); status('Alarm silindi.'); });
   let pick = startDate;
   const box = $('.mc', p);
@@ -3431,7 +3469,7 @@ function askDoneMessage(t, k, l) {
   const cat = catOn(k, l.catId || (t.done && t.done.catId));
   askMailCard(t, 'done', { head: longDay(UI.today), line: l.text || t.lineText || t.title, stat: 'Tamamlandı', color: cat ? cat.color : '#c3cbb8', done: true });
 }
-const mailPlain = (who, c) => c.done ? `Merhaba ${who},\n${c.line}\nTamamlandı.` : `Merhaba ${who},\nGörev alındı: ${c.line}\n${c.stat.split(' · ')[1] || ''}`.trim();
+const mailPlain = (who, c) => c.fix ? `Merhaba ${who},\n${c.line}\n${c.stat}.` : c.done ? `Merhaba ${who},\n${c.line}\nTamamlandı.` : `Merhaba ${who},\nGörev alındı: ${c.line}\n${c.stat.split(' · ')[1] || ''}`.trim();
 function askMailCard(t, kind, c) {
   const who = t.fromName || 'Sedat Bey', files = [];
   const m = makeModal({ title: `${who}'e mesaj`, color: '#c99a9b',
@@ -3450,7 +3488,7 @@ function askMailCard(t, kind, c) {
   fl.addEventListener('change', () => { files.push(...fl.files); fl.value = ''; chips(); });
   m.foot.addEventListener('click', async e => {
     const b = e.target.closest('[data-ak]'); if (!b) return;
-    const key = kind === 'ack' ? 'ack' : 'doneMsg';
+    const key = kind === 'ack' ? 'ack' : kind === 'fix' ? 'fixMsg' : 'doneMsg';
     if (b.dataset.ak !== 'yes') { t[key] = { skip: true }; save(); m.close(); return; }
     const cc = { ...c, line: inp.value.trim() || c.line }; const att = [];
     for (const f of files) { const fileId = uid(); await DB.putFile(fileId, { blob: f, name: f.name, type: f.type || '' }); att.push({ fileId, name: f.name, type: f.type || '', size: f.size }); }
@@ -3465,7 +3503,7 @@ function afterLineDone(k, l) {
   if (t && t.src === 'mail' && !t.manual && t.mail && !t.doneMsg) askDoneMessage(t, k, l);
 }
 /* görev durumu: kırmızı yuvarlak görev değil, yeşil yuvarlak onaylandı; tik oklu simge Sedat Bey'e yanıt verildi */
-const taskReply = t => { const p = [t.reply, t.ack && t.ack.sent && t.ack.text ? { text: t.ack.text, at: t.ack.sent } : null, t.doneMsg && t.doneMsg.sent ? { text: t.doneMsg.text, at: t.doneMsg.sent } : null].filter(Boolean); return p.length ? { text: p.map(x => x.text.trim()).join('\n\n'), at: p[p.length - 1].at, att: [...((t.ack && t.ack.sent && t.ack.att) || []), ...((t.doneMsg && t.doneMsg.sent && t.doneMsg.att) || [])] } : null; };
+const taskReply = t => { const p = [t.reply, t.ack && t.ack.sent && t.ack.text ? { text: t.ack.text, at: t.ack.sent } : null, t.fixMsg && t.fixMsg.sent ? { text: t.fixMsg.text, at: t.fixMsg.sent } : null, t.doneMsg && t.doneMsg.sent ? { text: t.doneMsg.text, at: t.doneMsg.sent } : null].filter(Boolean); return p.length ? { text: p.map(x => x.text.trim()).join('\n\n'), at: p[p.length - 1].at, att: [...((t.ack && t.ack.sent && t.ack.att) || []), ...((t.fixMsg && t.fixMsg.sent && t.fixMsg.att) || []), ...((t.doneMsg && t.doneMsg.sent && t.doneMsg.att) || [])] } : null; };
 /* gönderilen ekler: yalnızca yanıt açılınca, ataşsız ad olarak */
 const repAttHTML = r => (r.att || []).length ? `<div class="rep-att"><button class="rep-clip" data-repclip>${icon('clip')}</button><span class="rep-names" hidden>${r.att.map((a, i) => `<button class="rep-f" data-repatt="${i}">${esc(a.name)}</button>`).join('')}</span></div>` : '';
 document.addEventListener('click', e => { const c = e.target.closest('[data-repclip]'); if (!c) return; e.stopPropagation(); const n = c.nextElementSibling; n.hidden = !n.hidden; }, true);
@@ -3769,7 +3807,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '06.11.2026 · 6';
+const APP_VERSION = '07.11.2026';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3951,7 +3989,7 @@ function usedFileIds() {
   const ids = new Set(S.docs.map(d => d.fileId));
   for (const n of S.notes) for (const a of n.att || []) ids.add(a.fileId);
   for (const [, l] of allLines()) for (const a of l.att || []) ids.add(a.fileId);
-  for (const t of S.tasks || []) for (const a of [...(t.att || []), ...((t.ack && t.ack.att) || []), ...((t.doneMsg && t.doneMsg.att) || [])]) if (a.fileId) ids.add(a.fileId);
+  for (const t of S.tasks || []) for (const a of [...(t.att || []), ...((t.ack && t.ack.att) || []), ...((t.doneMsg && t.doneMsg.att) || []), ...((t.fixMsg && t.fixMsg.att) || [])]) if (a.fileId) ids.add(a.fileId);
   return [...ids].filter(Boolean);
 }
 async function makeBackup() {
@@ -4393,7 +4431,7 @@ async function gCheckMail2() {
 async function findReplies() {
   const now = Date.now(); let ch = false;
   for (const t of S.tasks || []) {
-    if (!t.done || t.reply || !t.mail || t.mail.acct !== 'co' || !t.mail.threadId || (t.ack && t.ack.sent) || (t.doneMsg && t.doneMsg.sent)) continue;
+    if (!t.done || t.reply || !t.mail || t.mail.acct !== 'co' || !t.mail.threadId || (t.ack && t.ack.sent) || (t.doneMsg && t.doneMsg.sent) || (t.fixMsg && t.fixMsg.sent)) continue;
     if (now - t.done.at > 14 * 864e5 || now - (t.replyChk || 0) < 30 * 6e4) continue;
     t.replyChk = now; ch = true;
     try {
@@ -4499,7 +4537,7 @@ async function gSendAck(t, key = 'ack') {
 }
 async function gSendPendingAcks() {
   if (!gHasToken() && !coHas()) return;
-  for (const t of S.tasks || []) for (const key of ['ack', 'doneMsg']) if (t[key] && !t[key].sent && !t[key].skip && t.mail) { try { await gSendAck(t, key); } catch (e) { console.warn('[zk] cevap', e); } }
+  for (const t of S.tasks || []) for (const key of ['ack', 'fixMsg', 'doneMsg']) if (t[key] && !t[key].sent && !t[key].skip && t.mail) { try { await gSendAck(t, key); } catch (e) { console.warn('[zk] cevap', e); } }
 }
 /* onay kutusundaki Gönder: hemen dener, olmazsa bağlantı gelince */
 function sendAck(t, key = 'ack') { if (t.mail && (t.mail.acct === 'co' ? coHas() : gHasToken())) gSendAck(t, key).then(ok => ok && status('Mesaj gönderildi.')).catch(() => status('Mesaj şimdi gönderilemedi; bağlantı gelince gönderilecek.')); }
