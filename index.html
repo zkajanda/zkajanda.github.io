@@ -2132,7 +2132,8 @@ function changeLineDay(k, l, target) {
   if (l.alarm && l.alarm.date === k) Object.assign(l.alarm, { date: target, fired: false, pre: false, late: false, setAt: Date.now() });
   for (const d of S.docs) if (d.line && d.line.id === l.id && d.line.date === k) { d.line.date = target; d.date = target; }
   const t = (S.tasks || []).find(x => x.done && x.done.lineId === l.id);
-  if (t) { t.done.day = target; delete t.dueWarned; }
+  if (t) { t.done.day = target; delete t.dueWarned;
+    if (t.ack && !t.ack.sent && !t.ack.skip && t.ack.head) { t.ack.stat = `Görev alındı · Bitiş tarihi: ${longDay(target)}`; t.ack.text = mailPlain(t.fromName || 'Sedat Bey', t.ack); } }   // sırada bekleyen mesaj yeni tarihle gider
   save(); renderAll();
   toast(`${fmtDot(target)} gününe alındı.`, { label: 'O güne git', fn: () => goDay(target, l.id) });
   if (t && t.ack && t.ack.sent && t.mail) {   // Sedat Bey'e eski tarih gitmişti: düzeltme sorulur
@@ -3398,7 +3399,10 @@ function openTaskMail(id) {
     body: `<div class="tm-meta"><span class="tk-who">${esc(t.from || 'Csk')}</span><span>${fmtDot(toKey(new Date(t.at)))}</span></div>
       <div class="tm-text">${tmText(t, false)}</div>
       ${(r => r ? `<div class="tk-repbox tm">${icon('replied')}<div>${esc(r.text.trim()).replace(/\n/g, '<br>')}${repAttHTML(r)}</div></div>` : '')(taskReply(t))}
-      ${(t.att || []).map((a, i) => `<button class="tk-att" data-tmatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}` });
+      ${(t.att || []).map((a, i) => `<button class="tk-att" data-tmatt="${i}">${icon('clip')} ${esc(a.name)}</button>`).join('')}`,
+    // "Görev alındı" gönderilmediyse (yanlışlıkla Gönderme denmiş olabilir) sonradan gönderilebilir
+    foot: t.done && t.src === 'mail' && !t.manual && t.mail && (!t.ack || t.ack.skip) ? `<button class="btn small" data-tmack>Görev alındı gönder</button>` : '' });
+  if (m.foot) { m.foot.style.justifyContent = 'center'; m.foot.addEventListener('click', e => { if (!e.target.closest('[data-tmack]')) return; m.close(); delete t.ack; askAckMessage(t, t.done.day); }); }
   m.body.addEventListener('click', e => { const ra = e.target.closest('[data-repatt]'); if (ra) { openRepAtt(taskReply(t), Number(ra.dataset.repatt)); return; } const r = e.target.closest('[data-tmraw]'); if (r) { $('.tm-text', m.body).innerHTML = tmText(t, r.dataset.tmraw === '1'); return; } const a = e.target.closest('[data-tmatt]'); if (!a) return; const f = t.att[Number(a.dataset.tmatt)]; if (f && f.fileId) viewAttachment({ ...f, isImg: /^image\//.test(f.type || '') }); });
 }
 /* Onay: önce seçilen gün/kategori/saat bir kez daha gösterilir (yanlışlıkla onaylanmasın).
@@ -3562,7 +3566,7 @@ WINDOWS.gorevler = {
       const t = S.tasks.find(x => x.id === row.dataset.tk); if (!t) return;
       const ra = e.target.closest('[data-repatt]'); if (ra) { openRepAtt(taskReply(t), Number(ra.dataset.repatt)); return; }
       if (e.target.closest('[data-tkrep]')) { m.rep = m.rep === t.id ? null : t.id; m.render(); return; }
-      if (t.done) return;
+      if (t.done) { if (e.target.closest('.tk-top')) openTaskMail(t.id); return; }
       const p = m.pick[t.id];
       if (e.target.closest('.tk-cal, select')) return;
       const c = e.target.closest('[data-tkcat]'); if (c) { p.cat = c.dataset.tkcat; m.render(); return; }
@@ -3807,7 +3811,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '07.11.2026';
+const APP_VERSION = '07.11.2026 · 2';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
