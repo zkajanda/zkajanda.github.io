@@ -2774,7 +2774,9 @@ function weekSummaryHTML(k) {
     const d = S.days[dk]; if (!d) continue;
     for (const l of d.lines) {
       if (!(l.text || '').trim() || l.recSource) continue;
+      const daily = l.recId && (recOf(l) || {}).every === -1;   // günlük tekrar: kalan iş sayılmaz (ertesi gün zaten kurulu)
       const p = per[l.catId] || (per[l.catId] = { done: 0, left: 0 });
+      if (daily && !l.done) continue;
       if (l.done || (l.movedTo && movedAlive(l)) || ((l.alarmDays || []).length && alarmCopies(l).some(([ak]) => ak > k))) { if (l.done) p.done++; continue; }
       p.left++; left.push([dk, l]);
     }
@@ -2782,11 +2784,12 @@ function weekSummaryHTML(k) {
   const pool = dayCats(k).concat(S.categories, ...days.map(dk => S.days[dk] ? S.days[dk].cats : []));
   const cats = pool.filter((c, i, a) => a.findIndex(x => x.id === c.id) === i && per[c.id]);
   const nxt = Array.from({ length: 7 }, (_, i) => addDays(k, i + 1)), upcoming = [];
-  for (const dk of nxt) { const d = S.days[dk]; if (!d) continue; for (const l of d.lines) if ((l.text || '').trim() && (l.recId || (l.alarm && l.alarm.on))) upcoming.push([dk, l]); }
+  const seenDaily = new Set();
+  for (const dk of nxt) { const d = S.days[dk]; if (!d) continue; for (const l of d.lines) if ((l.text || '').trim() && (l.recId || (l.alarm && l.alarm.on))) { const r = l.recId && recOf(l); if (r && r.every === -1) { if (seenDaily.has(r.id)) continue; seenDaily.add(r.id); upcoming.push(['her', l]); } else upcoming.push([dk, l]); } }   // günlük tekrar tek satır
   const wd = dk => ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][fromKey(dk).getDay()];
   const leftHTML = `<div class="ws-block"><div class="ws-t">Haftanın özeti</div>${cats.length ? cats.map(c => `<div class="ws-cat" style="--c:${c.color}"><span class="ws-chip">${esc(c.name)}</span><span>biten ${per[c.id].done}</span><span class="${per[c.id].left ? 'ws-left' : ''}">kalan ${per[c.id].left}</span></div>`).join('') : '<div class="ws-empty">Bu hafta kayıt yok.</div>'}</div>`;
   const rightHTML = `<div class="ws-block">${left.length ? `<div class="ws-t">Kalan işler</div>${left.map(([dk, l]) => `<div class="ws-row" data-ws-day="${dk}" data-ws-id="${l.id}"><span class="ws-dot" style="--c:${catOn(dk, l.catId).color}"></span><span class="ws-d">${wd(dk)} ${fmtDot(dk).slice(0, 5)}</span><span class="ws-x">${esc(l.text)}</span><button class="icon-btn" data-ws="done" title="Bitti">${icon('check')}</button><button class="icon-btn" data-ws="move" title="Bugüne aktar">${icon('arrow')}</button></div>`).join('')}` : ''}
-    ${upcoming.length ? `<div class="ws-t">Gelecek hafta</div>${upcoming.map(([dk, l]) => `<div class="ws-row up"><span class="ws-d">${wd(dk)} ${fmtDot(dk).slice(0, 5)}</span><span class="ws-ic">${icon(l.recId ? 'repeat' : 'bell')}</span><span class="ws-x">${l.alarm && l.alarm.on ? `<b>${pad(l.alarm.hour)}:00</b> ` : ''}${esc(l.text)}</span></div>`).join('')}` : ''}</div>`;
+    ${upcoming.length ? `<div class="ws-t">Gelecek hafta</div>${upcoming.map(([dk, l]) => `<div class="ws-row up"><span class="ws-d">${dk === 'her' ? 'Her gün' : wd(dk) + ' ' + fmtDot(dk).slice(0, 5)}</span><span class="ws-ic">${icon(l.recId ? 'repeat' : 'bell')}</span><span class="ws-x">${l.alarm && l.alarm.on ? `<b>${pad(l.alarm.hour)}:00</b> ` : ''}${esc(l.text)}</span></div>`).join('')}` : ''}</div>`;
   return { leftHTML, rightHTML };
 }
 document.addEventListener('click', e => {
@@ -3811,7 +3814,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '07.11.2026 · 2';
+const APP_VERSION = '09.11.2026';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
