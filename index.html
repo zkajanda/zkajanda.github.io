@@ -252,6 +252,11 @@ select:focus, input:focus, textarea:focus { border-color: #c4aeb6; }
 .tones { display: flex; gap: 6px; margin: 4px 0 0 100px; }
 .tones .sw.thin { width: 34px; height: 12px; }
 
+/* Hesap penceresi: tam ekran */
+#hesapWin { position: fixed; inset: 0; z-index: 80; background: #f2ece7; }
+#hesapWin iframe { width: 100%; height: 100%; border: 0; display: block; }
+#hesapWin .hesap-act { position: absolute; top: 12px; right: 14px; z-index: 2; display: flex; gap: 2px; background: rgba(255,252,248,.8); border-radius: 12px; }
+#hesapWin.side { left: auto; width: min(62vw, 100vw); min-width: min(560px, 100vw); box-shadow: -10px 0 30px -18px rgba(62,53,54,.45); border-radius: 18px 0 0 18px; overflow: hidden; }
 /* ---------- Modal pencereler ---------- */
 .overlay {
   position: fixed; inset: 0; z-index: 70; background: rgba(70, 58, 58, .28);
@@ -3347,10 +3352,10 @@ WINDOWS.araclar = {
   render(m) {
     m.tab = m.tab || 'renkler';
     if (!m.pane) {
-      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button><button data-artab="muzik" style="--c:#a8786a">${icon('music')}Müzik</button></div><div class="ar-pane"></div>`;
+      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button><button data-artab="muzik" style="--c:#a8786a">${icon('music')}Müzik</button><button data-artab="hesapz" style="--c:#7f9f84">${icon('calc')}Hesap</button></div><div class="ar-pane"></div>`;
       m.pane = { body: $('.ar-pane', m.body), render: () => m.render() };
       WINDOWS.renkler.bind(m.pane); WINDOWS.simgeler.bind(m.pane); WINDOWS.muzik.bind(m.pane);
-      m.body.addEventListener('click', e => { const t = e.target.closest('[data-artab]'); if (t) { m.tab = t.dataset.artab; m.render(); } });
+      m.body.addEventListener('click', e => { const t = e.target.closest('[data-artab]'); if (t && t.dataset.artab === 'hesapz') { openHesap(); return; } if (t) { m.tab = t.dataset.artab; m.render(); } });
     }
     $$('[data-artab]', m.body).forEach(b => b.classList.toggle('on', b.dataset.artab === m.tab));
     WINDOWS[m.tab].render(m.pane);
@@ -3823,7 +3828,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '21.11.2026';
+const APP_VERSION = '23.11.2026';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3946,8 +3951,22 @@ function enterApp() {
 }
 function lockApp() { if (!AUTH || !unlocked) return; notesOpen = false; closeAllPanels(); showLock(); }
 function exitApp() { closeAllPanels(); showLogin('Ajandadan çıkış yaptın. Tekrar açmak için şifreni yaz.'); }
-function closeAllPanels() { closePop(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close(); $('#accountPop').classList.add('hidden'); }
+function closeAllPanels() { closeHesap(); closePop(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close(); $('#accountPop').classList.add('hidden'); }
 
+/* Hesap (fiyat, satış, ürün, maliyet, kargo): Araçlar > Hesap. Her açışta PIN sorulur; ajanda kilitlenince kapanır.
+   Kendi sayfasında (hesap.html) çalışır, yalnızca ajanda açıkken ve bu pencerenin içinde açılır. Verisi bu tarayıcıda durur, koda yazılı değildir. */
+function openHesap(hash = '') { askPin(() => showHesap(hash)); }
+function showHesap(hash = '') {
+  closeHesap(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close();
+  window.HESAP_OK = true;
+  const w = document.createElement('div'); w.id = 'hesapWin';
+  w.innerHTML = `<iframe src="hesap.html${hash}" title="Hesap"></iframe><div class="hesap-act"><button class="icon-btn" data-h="side" title="Yana al">${icon('panel')}</button><button class="icon-btn" data-h="close" title="Kapat">${icon('close')}</button></div>`;
+  document.body.appendChild(w);
+  $('.hesap-act', w).onclick = e => { const b = e.target.closest('[data-h]'); if (!b) return;
+    if (b.dataset.h === 'close') return closeHesap();
+    const side = w.classList.toggle('side'); b.title = side ? 'Tam ekran' : 'Yana al'; };
+}
+function closeHesap() { const w = $('#hesapWin'); if (w) w.remove(); window.HESAP_OK = false; }
 /* Hesap paneli (ev tuşu) */
 function renderAccount(edit = false) {
   const p = $('#accountPop');
@@ -4098,9 +4117,11 @@ function openChest() {
     body: `<div class="chest-art">${icon('chest')}</div>
       <div class="chest-row"><div><b>Yedek al</b></div><button class="btn" data-c="save">Yedek al</button></div>
       <div class="chest-row"><div><b>Yedekten yükle</b></div><button class="btn ghost" data-c="load">Yükle</button></div>
+      <div class="chest-row"><div><b>Hesap yedeği</b></div><button class="btn ghost" data-c="hesap">Hesap</button></div>
       <div class="small-note" style="text-align:center;margin-top:10px">${last ? `Son yedek: ${esc(last)}` : 'Henüz yedek alınmadı.'}</div>` });
   m.body.addEventListener('click', async e => {
     const b = e.target.closest('[data-c]'); if (!b) return;
+    if (b.dataset.c === 'hesap') { m.close(); openHesap('#kutu'); return; }
     if (b.dataset.c === 'save') { b.disabled = true; b.textContent = 'Hazırlanıyor…'; const n = await makeBackup(); if (n == null) { b.disabled = false; b.textContent = 'Yedek al'; return; } m.close(); toast(`Kilitli yedek indirildi${n ? ` (${n} dosya dahil)` : ''}.`); }
     else { const f = await pickFile('.json,application/json'); if (f) { m.close(); restoreBackup(f); } }
   });
