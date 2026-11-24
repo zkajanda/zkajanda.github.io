@@ -3945,7 +3945,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '23.11.2026 · 5';
+const APP_VERSION = '24.11.2026 · 3';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4180,6 +4180,55 @@ function askOpenSecret() {
     f.onsubmit = e => { e.preventDefault(); done = true; const v = $('.bs', f).value; m.close(); res(v); };
   });
 }
+/* Hesap, Sandık yedeğinin İÇİNDE (kullanıcı kararı 24.11: tek yedek, bütün geçmiş tek dosyada; Hesap bırakılsa da geçmişi yedekte kalır).
+   Eski ayrı Hesap yedekleri (hesap-yedek-…json) Sandık > Yedekten yükle ile yine yüklenebilir. İçinde: Hesap verisi (localStorage 'zk-hesap') ve Hesap dosyaları (IndexedDB 'zk-hesap-files'); Sandık kilidiyle kilitlenir. */
+const HESAP_LS = 'zk-hesap';
+function hesapDB() { return new Promise((ok, no) => { const q = indexedDB.open('zk-hesap-files', 1); q.onupgradeneeded = () => q.result.createObjectStore('f', { keyPath: 'id' }); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); }
+async function hesapPack() {
+  const st = localStorage.getItem(HESAP_LS); const files = [];
+  try { const d = await hesapDB(); const all = await new Promise(r => { const t = d.transaction('f').objectStore('f').getAll(); t.onsuccess = () => r(t.result || []); t.onerror = () => r([]); });
+    for (const x of all) if (x && x.blob) files.push({ id: x.id, type: x.blob.type, data: await blobToDataURL(x.blob) }); } catch (_) {}
+  return st || files.length ? { st, files } : null;
+}
+async function hesapRestore(h) {
+  if (!h) return;   // eski yedekte Hesap yoksa bu bilgisayardaki Hesap olduğu gibi kalır
+  if (h.st) localStorage.setItem(HESAP_LS, h.st);
+  try { const d = await hesapDB(); await new Promise(r => { const t = d.transaction('f', 'readwrite'); const os = t.objectStore('f'); os.clear(); t.oncomplete = r; t.onerror = r; });
+    for (const x of h.files || []) { const blob = await dataURLToBlob(x.data); await new Promise(r => { const t = d.transaction('f', 'readwrite'); t.objectStore('f').put({ id: x.id, blob }); t.oncomplete = r; t.onerror = r; }); } } catch (_) {}
+}
+async function makeHesapBackup() {
+  const h = await hesapPack(); if (!h) { toast('Hesap boş, yedeklenecek bir şey yok.'); return false; }
+  let lock = null;
+  if (CAN_LOCK) {
+    let raw = await bLocalRaw(), bk = await DB.get('bkey');
+    if (!raw || !bk) { const sec = await askLockSecrets(); if (!sec) return false; ({ raw, bk } = await bCreate(sec.pass, sec.rec)); }
+    lock = { raw, bk };
+  }
+  const pack = { app: 'zk-hesap', v: 1, at: new Date().toISOString(), hesap: h };
+  let out = pack;
+  if (lock) { const box = await seal(await dekKey(lock.raw), te.encode(JSON.stringify(pack))); out = { app: 'zk-hesap', v: 2, locked: true, at: pack.at, salt: lock.bk.salt, wrapP: lock.bk.wrapP, wrapR: lock.bk.wrapR, iv: box.iv, ct: box.ct }; }
+  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `hesap-yedek-${fmtDot(todayKey())}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  S.settings.lastHesapBackup = Date.now(); save();
+  return true;
+}
+async function restoreHesapBackup(file) {
+  let pack;
+  try { pack = JSON.parse(await file.text()); } catch { toast('Bu dosya bir Hesap yedeği değil.'); return; }
+  if (pack && pack.app === 'zk-hesap' && pack.locked) {
+    if (!CAN_LOCK) { toast('Bu tarayıcı kilitli yedeği açamıyor.'); return; }
+    const sec = await askOpenSecret(); if (sec == null) return;
+    const raw = await bOpen(pack, sec); if (!raw) { toast('Şifre ya da kurtarma kodu doğru değil.'); return; }
+    try { pack = JSON.parse(td.decode(await unseal(await dekKey(raw), { iv: pack.iv, ct: pack.ct }))); } catch { toast('Yedek açılamadı.'); return; }
+  }
+  if (!pack || pack.app !== 'zk-hesap' || !pack.hesap) { toast(pack && pack.app === 'zk-ajanda' ? 'Bu bir ajanda yedeği; Hesap yedeği değil.' : 'Bu dosya bir Hesap yedeği değil.'); return; }
+  const when = pack.at ? new Date(pack.at).toLocaleString('tr-TR', { dateStyle: 'long', timeStyle: 'short' }) : 'bilinmeyen tarih';
+  confirmBox({
+    text: `${esc(when)} tarihli Hesap yedeği yüklensin mi?<br><br>Bu bilgisayardaki Hesap, yedekteki haliyle <b>tamamen değiştirilir</b>. Ajandaya dokunulmaz.`,
+    buttons: [{ label: 'Vazgeç' }, { label: 'Yedeği yükle', danger: true, fn: async () => { closeHesap(); await hesapRestore(pack.hesap); toast('Hesap yedeği yüklendi.'); } }]
+  });
+}
 async function makeBackup() {
   let lock = null;
   if (CAN_LOCK) {
@@ -4189,7 +4238,7 @@ async function makeBackup() {
   }
   const files = {};
   for (const id of usedFileIds()) { const r = await DB.getFile(id); if (r) files[id] = { name: r.name, type: r.type, data: await blobToDataURL(r.blob) }; }
-  const pack = { app: 'zk-ajanda', v: 1, at: new Date().toISOString(), state: S, auth: AUTH, files };
+  const pack = { app: 'zk-ajanda', v: 1, at: new Date().toISOString(), state: S, auth: AUTH, files, hesap: await hesapPack() };
   let out = pack;
   if (lock) { const box = await seal(await dekKey(lock.raw), te.encode(JSON.stringify(pack))); out = { app: 'zk-ajanda', v: 2, locked: true, at: pack.at, salt: lock.bk.salt, wrapP: lock.bk.wrapP, wrapR: lock.bk.wrapR, iv: box.iv, ct: box.ct }; }
   const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
@@ -4201,6 +4250,7 @@ async function makeBackup() {
 async function restoreBackup(file) {
   let pack;
   try { pack = JSON.parse(await file.text()); } catch { toast('Bu dosya bir ajanda yedeği değil.'); return; }
+  if (pack && pack.app === 'zk-hesap') return restoreHesapBackup(file);   // eski ayrı Hesap yedeği
   let lockKey = null;
   if (pack && pack.app === 'zk-ajanda' && pack.locked) {
     if (!CAN_LOCK) { toast('Bu tarayıcı kilitli yedeği açamıyor.'); return; }
@@ -4220,6 +4270,7 @@ async function restoreBackup(file) {
       for (const k of ['symbolDesc', 'settings', 'brush']) S[k] = Object.assign(defaultState()[k], S[k] || {});
       migrateState();
       await DB.set('state', S);
+      await hesapRestore(pack.hesap);
       if (pack.auth) { AUTH = pack.auth; await DB.set('auth', AUTH); }
       if (CAN_LOCK) { if (lockKey) { await DB.set('bkey', lockKey.bk); await bStoreLocal(lockKey.raw); } else await bForget(); }
       if (typeof gMeta === 'function' && ON_WEB) { const gm = await gMeta(); if (gm.connected) { gm.dirty = true; gm.count = 0; await gMetaSave(); } }
@@ -4230,15 +4281,13 @@ async function restoreBackup(file) {
 }
 function openChest() {
   const last = S.settings.lastBackup ? new Date(S.settings.lastBackup).toLocaleString('tr-TR', { dateStyle: 'long', timeStyle: 'short' }) : null;
-  const m = makeModal({ title: 'Sandık', color: '#e2c48f', size: 'sm', sub: 'Ajandanın tamamını tek dosyada saklar',
+  const m = makeModal({ title: 'Sandık', color: '#e2c48f', size: 'sm', sub: 'Ajandanın ve Hesap\'ın tamamını tek dosyada saklar',
     body: `<div class="chest-art">${icon('chest')}</div>
       <div class="chest-row"><div><b>Yedek al</b></div><button class="btn" data-c="save">Yedek al</button></div>
       <div class="chest-row"><div><b>Yedekten yükle</b></div><button class="btn ghost" data-c="load">Yükle</button></div>
-      <div class="chest-row"><div><b>Hesap yedeği</b></div><button class="btn ghost" data-c="hesap">Hesap</button></div>
       <div class="small-note" style="text-align:center;margin-top:10px">${last ? `Son yedek: ${esc(last)}` : 'Henüz yedek alınmadı.'}</div>` });
   m.body.addEventListener('click', async e => {
     const b = e.target.closest('[data-c]'); if (!b) return;
-    if (b.dataset.c === 'hesap') { m.close(); openHesap('#kutu'); return; }
     if (b.dataset.c === 'save') { b.disabled = true; b.textContent = 'Hazırlanıyor…'; const n = await makeBackup(); if (n == null) { b.disabled = false; b.textContent = 'Yedek al'; return; } m.close(); toast(`Kilitli yedek indirildi${n ? ` (${n} dosya dahil)` : ''}.`); }
     else { const f = await pickFile('.json,application/json'); if (f) { m.close(); restoreBackup(f); } }
   });
