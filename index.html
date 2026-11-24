@@ -921,6 +921,8 @@ input, textarea, select { font-family: var(--font); }
 .status-line[data-kind="left"] { --kc: #a8cad2; }
 .status-line[data-kind="task"] { --kc: #c77f80; }
 .status-line[data-kind="alarm"] { --kc: #e7c27c; }
+.status-line[data-kind="yedek"] { --kc: #e2c48f; }
+.status-line[data-kind="yedek"] .st-link { text-decoration: underline dotted; color: var(--ink); }
 .status-line[data-kind]:not([data-kind=""]) .st-icon { color: var(--ink); }
 .status-line[data-kind]:not([data-kind=""])::after { content: ""; position: absolute; inset: 0 -14px; z-index: -2; background: color-mix(in srgb, var(--paper, #fffcf8) 70%, transparent); filter: blur(8px); border-radius: 50%; }
 .toast.kind-alarm { position: relative; isolation: isolate; }
@@ -2702,6 +2704,15 @@ function moveLineTo(k, l, target) {
   l.movedTo = target;
 }
 
+/* ===== Yedek hatırlatması: son Sandık yedeğinden 7 gün geçince, günde bir kez, durum satırında ===== */
+function checkBackupNag() {
+  const tk = todayKey(); if (S.settings.bnagDay === tk) return;
+  const last = S.settings.lastBackup || 0, since = last || S.settings.firstUse || Date.now();
+  const days = Math.floor((Date.now() - since) / 864e5); if (days < 7) return;
+  S.settings.bnagDay = tk; save();
+  whenStatusFree(() => status(`${icon('chest')} ${last ? `Son yedek ${days} gün önce alındı` : 'Henüz yedek alınmadı'}`,
+    [{ label: 'Yedek al', fn: openChest }, { label: 'Sonra', fn: () => {} }], false, 'yedek', true), 90);
+}
 /* ===== Önceki günlerden kalan işler =====
    Bugünden önceki 7 gün. Tiklenmemiş, aktarılmamış (ya da aktarıldığı yerde artık yoksa), başka güne alarm kopyası olmayan,
    yazısı olan satırlar. Aktarılan iş eski gününde tamam sayılır; yeni gününde tiklenmezse orada hatırlatılır. */
@@ -3945,7 +3956,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '24.11.2026 · 3';
+const APP_VERSION = '24.11.2026 · 4';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -3968,7 +3979,7 @@ function hideGate() {
   setTimeout(() => { if (unlocked) dailyNotices(); }, 1200);
   setTimeout(() => { if (unlocked) flushLockedAlarms(); }, 400);
   setTimeout(() => { if (unlocked) { taskBadge(); flushLockedTasks(); } }, 7000);
-  setTimeout(() => { if (unlocked) whenStatusFree(checkLeftovers); }, 2500); setTimeout(() => { if (unlocked) checkDueTasks(); }, 4000);
+  setTimeout(() => { if (unlocked) whenStatusFree(checkLeftovers); }, 2500); setTimeout(() => { if (unlocked) checkDueTasks(); }, 4000); setTimeout(() => { if (unlocked) checkBackupNag(); }, 12000);
   if (typeof gOnUnlock === 'function') gOnUnlock();
 }
 const pwField = (cls, ph) => `<div class="pw-field"><input type="password" class="${cls}" placeholder="${ph}" autocomplete="off"><button type="button" class="icon-btn" data-eye title="Göster / gizle">${icon('eye')}</button></div>`;
