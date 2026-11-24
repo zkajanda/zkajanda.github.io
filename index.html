@@ -3468,7 +3468,7 @@ WINDOWS.araclar = {
   render(m) {
     m.tab = m.tab || WINDOWS.araclar._tab || 'renkler'; m.keep = () => m.tab === 'vergi';
     if (!m.pane) {
-      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button><button data-artab="muzik" style="--c:#a8786a">${icon('music')}Müzik</button><button data-artab="vergi" style="--c:#8a9e7f">${icon('vergi')}Vergi</button><button data-artab="hesapz" style="--c:#7f9f84">${icon('notebook')}Hesap</button></div><div class="ar-pane"></div>`;
+      m.body.innerHTML = `<div class="ar-tabs"><button data-artab="renkler" style="--c:#d29b2e">${icon('palette')}Renkler</button><button data-artab="simgeler" style="--c:#b5654a">${icon('sparkles')}Simgeler</button><button data-artab="muzik" style="--c:#a8786a">${icon('music')}Müzik</button><button data-artab="vergi" style="--c:#8a9e7f">${icon('vergi')}Vergi</button><button data-artab="hesapz" style="--c:#7f9bb5">${icon('notebook')}Hesap</button></div><div class="ar-pane"></div>`;
       m.pane = { body: $('.ar-pane', m.body), render: () => m.render(), acik: {} };
       WINDOWS.renkler.bind(m.pane); WINDOWS.simgeler.bind(m.pane); WINDOWS.muzik.bind(m.pane);
       m.body.addEventListener('click', e => { const t = e.target.closest('[data-artab]'); if (t && t.dataset.artab === 'hesapz') { openHesap(); return; } if (t) { m.tab = WINDOWS.araclar._tab = t.dataset.artab; m.render(); return; } const k = e.target.closest('[data-arkat]'); if (k) { m.pane.acik[k.dataset.arkat] = !m.pane.acik[k.dataset.arkat]; m.render(); } });
@@ -3945,7 +3945,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '23.11.2026 · 4';
+const APP_VERSION = '23.11.2026 · 5';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4072,7 +4072,7 @@ function closeAllPanels() { closeHesap(); closePop(); [...openModals].forEach(m 
 
 /* Hesap (fiyat, satış, ürün, maliyet, kargo): Araçlar > Hesap. Her açışta PIN sorulur; ajanda kilitlenince kapanır.
    Kendi sayfasında (hesap.html) çalışır, yalnızca ajanda açıkken ve bu pencerenin içinde açılır. Verisi bu tarayıcıda durur, koda yazılı değildir. */
-function openHesap(hash = '') { askPin(() => showHesap(hash), 'Hesap', '#c7d9c3'); }
+function openHesap(hash = '') { askPin(() => showHesap(hash), 'Hesap', '#c9d6e3'); }
 function showHesap(hash = '') {
   closeHesap(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close();
   window.HESAP_OK = true;
