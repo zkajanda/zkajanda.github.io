@@ -95,7 +95,7 @@ th.tk,td.tk{width:26px;min-width:26px;padding:0!important;text-align:center!impo
 .cmenu .mt{padding:4px 6px 8px;font-size:14px}.cmenu .mrow{display:flex;gap:6px;margin-top:8px}
 
 td.sku{text-align:left!important}.tier{font-size:10px;vertical-align:top;line-height:12px;margin-left:2px;color:var(--mut)}td.ar{width:16px;padding:0 0 0 2px!important;color:var(--mut);cursor:pointer;font-size:12px;text-align:center!important}td.ar:hover{color:var(--ink)}
-tr.addB td.sku{box-shadow:inset 0 -2px 0 #b9aea9;cursor:copy}
+tr.addB td.sku,tr.addB td.dsk{box-shadow:inset 0 -2px 0 #b9aea9!important;cursor:copy;transition:none!important}
 
 /* ortalı */
 table th,table td{text-align:center!important;vertical-align:middle}
@@ -339,7 +339,7 @@ function vKargo(){
  const map=`<div class="kmap">${CODES.map(k=>`<label class="kcell" style="--sc:${SC[k]}"><span>${k}</span><select data-site-car="${k}">${[['Site','—'],...C.map(c=>[c,c])].map(([v,n])=>`<option value="${v}" ${st.sites[k].car===v?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}</div>`;
  const ds=[...new Set(C.flatMap(c=>st.car[c].map(r=>r[0])))].sort((a,b)=>a-b);
  const users=c=>CODES.filter(k=>st.sites[k].car===c).map(k=>`<span class="dot" title="${k}" style="background:${SC[k]};margin:0 1px"></span>`).join('');
- const rows=ds.map(d=>`<tr data-desi="${d}"><td class="b">${inp(`desi|${d}`,d,{c:'s'})}</td>${C.map(c=>{if(st.carHid?.[c])return `<td class="hcol" data-carshow="${esc(c)}"></td>`;const r=st.car[c].find(x=>x[0]===d);return `<td>${inp(`car|${c}|${d}`,r?.[1],{c:'s'})}</td>`}).join('')}<td></td></tr>`).join('');
+ const rows=ds.map(d=>`<tr data-desi="${d}"><td class="b dsk">${inp(`desi|${d}`,d,{c:'s'})}</td>${C.map(c=>{if(st.carHid?.[c])return `<td class="hcol" data-carshow="${esc(c)}"></td>`;const r=st.car[c].find(x=>x[0]===d);return `<td>${inp(`car|${c}|${d}`,r?.[1],{c:'s'})}</td>`}).join('')}<td></td></tr>`).join('');
  return `<div class="card">${map}<div class="scroll"><table class="h3 eq"><tr><th>Desi</th>${C.map(c=>st.carHid?.[c]?`<th class="hcol" data-carshow="${esc(c)}" data-tip="${esc(c)} gizli · göstermek için tıkla"></th>`:`<th>${ui.cedit===c?`<input class="box cin" id="cIn" value="${esc(c)}" data-c="${esc(c)}">`:`<span class="carn" data-carname="${esc(c)}" data-tip="Çift tık: adı değiştir · Sağ tık: sil">${esc(c)}</span>`}<div class="kus">${users(c)}</div><div class="carctl">${C.indexOf(c)>0?`<i data-cmv="${esc(c)}|l" data-tip="Sola al">‹</i>`:'<i></i>'}<i data-chide="${esc(c)}" data-tip="Gizle">–</i>${C.indexOf(c)<C.length-1?`<i data-cmv="${esc(c)}|r" data-tip="Sağa al">›</i>`:'<i></i>'}</div></th>`).join('')}<th class="kadd" data-act="addcar" data-tip="Firma ekle">+</th></tr>${rows}
  <tr class="newfat"><td><input class="in s" id="ndesi" placeholder="Desi"></td>${C.map(()=>'<td></td>').join('')}<td></td></tr></table></div></div>`}
 /* ---------- satış ---------- */
@@ -695,8 +695,8 @@ function addRow(){const m=ui.menu,T=tbl(),sku=(document.getElementById('mAdd').v
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='mAdd')addRow();if(e.key==='Enter'&&e.target.id==='ndesi'){const d=+e.target.value.replace(',','.');if(d){const f=Object.keys(st.car)[0];if(!st.car[f].some(x=>x[0]===d))st.car[f].push([d,null]);save();render()}return}
  if(e.key==='Enter'&&e.target.closest?.('tr.newfat'))addFat()});
 
-function edge(tr,e){const td=e.target.closest?.('td.sku');if(!td||e.target.closest('input'))return 0;const r=td.getBoundingClientRect();return r.bottom-e.clientY<=4?1:0}
-document.addEventListener('mousemove',e=>{const old=document.querySelector('tr.addT,tr.addB');const tr=e.target.closest?.('tr[data-row],tr[data-trow]');let d=0;if(tr&&!ui.menu)d=edge(tr,e);
+function edge(tr,e){const td=e.target.closest?.('td.sku,td.dsk');if(!td||e.target.closest('input'))return 0;const r=td.getBoundingClientRect();return r.bottom-e.clientY<=4?1:0}
+document.addEventListener('mousemove',e=>{const old=document.querySelector('tr.addT,tr.addB');const tr=e.target.closest?.('tr[data-row],tr[data-trow],tr[data-desi]');let d=0;if(tr&&!ui.menu)d=edge(tr,e);
  if(old&&(old!==tr||!d))old.classList.remove('addT','addB');if(tr&&d){tr.classList.toggle('addT',d<0);tr.classList.toggle('addB',d>0)}});
 
 document.addEventListener('click',e=>{const c=e.target.closest('[data-clr]');if(!c)return;e.stopPropagation();if(!c.dataset.okd){askC(c,'Temizlensin mi?',()=>{c.dataset.okd=1;c.click()});return}delete c.dataset.okd;snap();setTimeout(()=>{toast('Uygulandı');flash()},30);const k=st.site,s=st.sites[k];s.top=s.top||{};const id=c.dataset.clr;
@@ -1107,6 +1107,8 @@ document.addEventListener('contextmenu',e=>{if(st.tab!=='hesap'||st.site!=='TOPL
  d.innerHTML=`${fi?'<button class="mi" data-tf="1">⇣ Tümüne uygula</button>':''}<button class="mi neg" data-tf="del">Sil</button>`;document.body.appendChild(d);ui.askOk=null;
  d.addEventListener('click',ev=>{const b=ev.target.closest('[data-tf]');if(!b)return;ev.stopPropagation();d.remove();if(b.dataset.tf==='1')doFill(fi);else if(b.dataset.tf==='only')onlyPick(e);else{const k=tr.dataset.trow;askC(tr.querySelector('td'),`${k} silinsin mi?`,()=>{delete st.toplu[k]})}})},true);
 /* TOPLU: ürün kodunun alt çizgisine tıklayınca altına ekle */
+document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-desi]');if(!tr||!edge(tr,e))return;e.stopPropagation();
+ askText(tr.querySelector('td'),'Yeni desi',v=>{const d=+String(v).replace(',','.');if(!d)return;if(Object.values(st.car).some(t=>t.some(x=>x[0]===d))){toast('Bu desi zaten var');return}const f=Object.keys(st.car)[0];st.car[f].push([d,null]);save();render();toast(d+' desi eklendi')})},true);
 document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-trow]');if(!tr||!edge(tr,e))return;e.stopPropagation();const after=tr.dataset.trow;closeAsk();
  const r=tr.getBoundingClientRect(),d=document.createElement('div');d.id='askp';d.className='cmenu';d.style.left=(r.left+8)+'px';d.style.top=(r.bottom+4)+'px';
  const opts=[...new Set([...Object.keys(st.mal),...Object.keys(st.prod)])].filter(x=>!st.toplu[x]).sort((a,b)=>a.localeCompare(b,'tr'));
