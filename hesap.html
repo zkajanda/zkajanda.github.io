@@ -190,7 +190,9 @@ tr.newfat td{background:#fbf6f1}
 .top{padding-right:84px}
 </style><div class="wrap" id="app"></div>
 <script>
-if(window.top===window||!(()=>{try{return parent.HESAP_OK===true}catch(_){return location.protocol==='file:'}})()){document.documentElement.innerHTML='';location.replace('index.html');throw new Error('ajanda')}
+if(window.top===window||!(()=>{try{return parent.HESAP_OK===true}catch(_){return location.protocol==='file:'}})()){document.documentElement.innerHTML='';window.stop();try{location.replace('index.html')}catch(_){}}
+</script>
+<script>
 const D={"ver":"2026-11-20g","uver":"2","carriers":{"HepsiJet":[],"Dhl":[],"Sürat":[],"Aras":[],"Yurtiçi":[],"Ups":[]},"maliyet":{},"toplu":{},"products":[],"sites":[{"k":"TY","name":"Trendyol","stopaj":true,"loj":0,"mt":"p","reklam":0.03,"kom":0.22,"tab":[],"rows":{},"hafta":{}},{"k":"VW","name":"Vigowood","stopaj":false,"loj":0,"mt":"p","reklam":0.11,"kom":0.055,"tab":[],"rows":{},"hafta":{}},{"k":"AMZ","name":"Amazon","stopaj":true,"loj":40,"mt":"p","reklam":0,"kom":0.15,"tab":[],"rows":{},"hafta":{}},{"k":"HB","name":"Hepsiburada","stopaj":true,"loj":0,"mt":"p","reklam":0.01,"kom":0.18,"tab":[],"rows":{},"hafta":{}},{"k":"TM","name":"Temu","stopaj":true,"loj":0,"mt":"p","reklam":0,"kom":0,"tab":[],"rows":{},"hafta":{}},{"k":"PZ","name":"Pazarama","stopaj":true,"loj":0,"mt":"p","reklam":0.01,"kom":0.17,"tab":[],"rows":{},"hafta":{}},{"k":"ÇS","name":"Çiçek Sepeti","stopaj":true,"loj":0,"mt":"p","reklam":0.01,"kom":0,"tab":[],"rows":{},"hafta":{}},{"k":"N11","name":"N11","stopaj":true,"loj":0,"mt":"p","reklam":0.01,"kom":0.19,"tab":[],"rows":{},"hafta":{}},{"k":"IDE","name":"İdefix","stopaj":true,"loj":0,"mt":"p","reklam":0.01,"kom":0.2,"tab":[],"rows":{},"hafta":{}},{"k":"ETSY","name":"Etsy","stopaj":false,"loj":0,"mt":"p","reklam":0,"kom":0.07,"tab":[],"rows":{},"hafta":{}},{"k":"MENZİL","name":"Menzil","stopaj":false,"loj":0,"mt":"p","reklam":0,"kom":0,"tab":[],"rows":{},"hafta":{}},{"k":"TDV","name":"TDV","stopaj":false,"loj":0,"mt":"t","reklam":0,"kom":0,"tab":[],"rows":{},"hafta":{}}],"malHist":[],"malFrom":"","malAd":"","malFilled":[],"urun":[],"mal9":{"cur":{},"hist":[]}};
 const LS='zk-hesap';
 const CODES=['TY','VW','AMZ','HB','TM','PZ','ÇS','N11','IDE','ETSY','MENZİL','TDV'].filter(k=>D.sites.some(s=>s.k===k));
@@ -1001,6 +1003,10 @@ const fzOf=(c,site)=>({...Object.fromEntries(FZK.map(k=>[k,Math.round((c[k]||0)*
 const ayOf=t=>(t||'').slice(0,7);
 function ayList(){st.ay=st.ay||{};return [...new Set([...st.sales.map(r=>ayOf(r.tarih)),...Object.keys(st.ay).filter(a=>st.ay[a].g?.length||st.ay[a].fz)])].filter(Boolean).sort()}
 function aySt(a){const o=st.ay?.[a];return !o?.fz?'acik':o.k?'kilit':'cozuk'}
+/* kilitlemeden önce eksik kontrolü: eksik bilgili ay kilitlenmez */
+function monthIssues(a){const seen=new Set(),out=[];for(const r of st.sales){if(ayOf(r.tarih)!==a||r.grp)continue;const k=r.site,sku=r.sku,key=k+'|'+sku;if(seen.has(key))continue;seen.add(key);
+  let why='';if(!st.sites[k])why='Site yok';else if(!hasCost(k,sku))why='Maliyet yok';else why=kgWarn(k,sku).split(' · ')[0];if(why)out.push({k,sku,why})}return out}
+const issuesHTML=(a,L)=>`<b>${ayAd(a)}</b> kilitlenmedi, eksik bilgi var:<div style="text-align:left;margin:8px 0 0;font-size:12.5px;line-height:1.7">${L.slice(0,8).map(x=>`<div><i class="dot" style="background:${SC[x.k]||'#ccc'};margin-right:6px"></i><b>${esc(x.sku)}</b> · ${x.k} · ${esc(x.why)}</div>`).join('')}${L.length>8?`<div style="color:var(--mut)">ve ${L.length-8} tane daha</div>`:''}</div>`;
 function lockMonth(a){st.ay=st.ay||{};const o=st.ay[a]||(st.ay[a]={});for(const r of st.sales)if(ayOf(r.tarih)===a)r.fz=fzOf(saleCalc(r,true),r.site);o.fz=1;o.k=1;o.at=today();compress()}
 function compress(){const L=Object.keys(st.ay||{}).filter(a=>st.ay[a].fz).sort();const keep=L.at(-1);
  for(const a of L){if(a===keep)continue;const rows=st.sales.filter(r=>ayOf(r.tarih)===a&&r.fz);if(!rows.length)continue;const o=st.ay[a];o.g=o.g||[];
@@ -1020,7 +1026,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-aylock],[d
  if(t.dataset.aysel){st.f.t=st.f.t===t.dataset.aysel?'':t.dataset.aysel;save();render();return}
  if(t.dataset.aylock){const a=t.dataset.aylock,s=aySt(a);
   if(s==='kilit')askC(t,`${ayAd(a)} kilidi açılsın mı?`,()=>{st.ay[a].k=0});
-  else askC(t,`${ayAd(a)} kilitlensin mi?`,()=>{if(s==='cozuk'){st.ay[a].k=1}else lockMonth(a)});return}
+  else{const L=s==='cozuk'?[]:monthIssues(a);if(L.length){askC(t,issuesHTML(a,L),null);return}askC(t,`${ayAd(a)} kilitlensin mi?`,()=>{if(s==='cozuk'){st.ay[a].k=1}else lockMonth(a)})}return}
  if(t.dataset.ayre){const a=t.dataset.ayre;if(aySt(a)==='kilit'){toast('Önce kilidi açın');return}const p=recalcPreview(a);
   if(Math.abs(p.neu-p.old)<0.5&&!Object.keys(p.cc).length){toast('Değişen bir şey yok');return}
   const cs=Object.entries(p.cc).map(([k,[o2,n2]])=>`${k} kargo ${carAd(o2)} → ${carAd(n2)}`).join(' · ');
@@ -1114,7 +1120,8 @@ function openPast(){const cur=today().slice(0,7);return ayList().filter(a=>a<cur
 function lockNag(){if(ui.nagOff)return '';const L=openPast();if(!L.length)return '';
  return `<div class="nag">${IC.lock}<span><b>${L.map(ayAd).join(', ')}</b> bitti, kilitlensin mi?</span><button class="btn g" data-nag="1">Kilitle</button><button class="btn" data-nag="0">Sonra</button></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nag]');if(!b)return;e.stopPropagation();if(b.dataset.nag==='0'){ui.nagOff=1;render();return}
- for(const a of openPast())lockMonth(a);save();render();toast('Kilitlendi')},true);
+ const bad=[];let n=0;for(const a of openPast()){const L=monthIssues(a);if(L.length)bad.push([a,L]);else{lockMonth(a);n++}}save();render();if(n)toast('Kilitlendi');
+ if(bad.length){const el=document.querySelector('[data-nag]')||document.querySelector('.top h1');ui.nagOff=0;if(el)askC(el,bad.map(([a,L])=>issuesHTML(a,L)).join('<hr style="border:0;border-top:1px dashed var(--line);margin:8px 0">'),null)}},true);
 /* tek tıkla düzenle: çift tıkla açılan her yer tek tıkla da açılır */
 document.addEventListener('click',e=>{let t=e.target;if(e.detail>1||!t.closest||t.closest('[data-hiderow]'))return;
  let ie=t.closest('input[data-set]');if(!ie){const td=t.closest('td');const ins=td?td.querySelectorAll('input[data-set]'):[];if(ins.length===1&&!t.closest('[data-utog],[data-bx],.ok,[data-apply],[data-hiderow],[data-clr],[data-tclr],[data-sku]')){ie=ins[0];t=ie}}
