@@ -186,7 +186,7 @@ tr.newfat input::placeholder{color:#b3a6a2}
 tr.newfat td{background:#fbf6f1}
 .empty{color:var(--mut);padding:20px 0;text-align:center}
 @media(max-width:640px){.q{width:100%;margin-left:0}}
-.fk svg{width:16px;height:16px;vertical-align:-3px}.tbi{display:inline-flex;gap:2px;align-items:center;margin-right:4px}.tbi .ib{width:30px;height:30px;color:#9a8b86}.tbi .ib:hover{color:var(--ink)}.tbi .ib svg{width:19px!important;height:19px!important}.hbtn{cursor:pointer;border-radius:10px;padding:0 4px;transition:background .15s}.hbtn:hover,.hbtn.on{background:rgba(187,164,178,.18)}.hmenu{display:flex;gap:4px;padding:6px}.hmenu .ib{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center}.hmenu .ib svg{width:23px!important;height:23px!important}
+.fk svg{width:16px;height:16px;vertical-align:-3px}#app.wrap{padding-top:44px;position:relative}#app>.nag{position:absolute!important;top:2px;left:50%;transform:translateX(-50%);margin:0!important;z-index:5;transition:opacity .4s}body:has(#toast:not(.out)) #app>.nag{opacity:0;pointer-events:none}.scroll.frz{overflow:auto}td.frzc{background:var(--card)}tr:hover td.frzc{background:#fbf7f2}th.frzc{background:var(--card)}.top h1{grid-column:1/-1!important;grid-row:1!important;justify-self:center;margin:0 0 8px!important}.top .nrow.top5{grid-column:2;grid-row:2}.top .topu{grid-row:2!important}.top .q{grid-row:3!important}.bt{position:relative;display:inline-block;font:bold 21px Georgia,serif;color:var(--ink);padding:3px 22px;z-index:0}.bt::before{content:'';position:absolute;inset:4px -4px 2px -2px;z-index:-1;background:#cfcac6;opacity:.85;filter:blur(5px);border-radius:46% 58% 42% 60% / 62% 44% 58% 40%}.tbi{display:inline-flex;gap:2px;align-items:center;margin-right:4px}.tbi .ib{width:30px;height:30px;color:#9a8b86}.tbi .ib:hover{color:var(--ink)}.tbi .ib svg{width:19px!important;height:19px!important}.hbtn{cursor:pointer;border-radius:10px;padding:0 4px;transition:background .15s}.hbtn:hover,.hbtn.on{background:rgba(187,164,178,.18)}.hmenu{display:flex;gap:4px;padding:6px}.hmenu .ib{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center}.hmenu .ib svg{width:23px!important;height:23px!important}
 .top{padding-right:84px}
 </style><div class="wrap" id="app"></div>
 <script>
@@ -275,9 +275,9 @@ const prodOpts=(skip={})=>Object.keys(st.prod).filter(s=>!skip[s]).sort((a,b)=>a
 const TABS=[['hesap','FİYAT','#bba4b2'],['satis','SATIŞ','#b5c5b9'],['urun','ÜRÜN','#cdc5cb'],['maliyet','MALİYET','#dbb6bc'],['kargo','KARGO','#f0c6ae']];
 function render(){
  const a=document.getElementById('app'),fy=window.scrollY,ae=document.activeElement?.dataset?.set;
- a.innerHTML=lockNag()+`<div class="top"><h1>Hesap</h1><div class="nrow top5">${TABS.map(([k,n,c])=>`<button class="nb ${st.tab===k?'on':''}" data-tab="${k}" style="--c:${c}">${n}</button>`).join('')}</div>
+ a.innerHTML=lockNag()+`<div class="top"><h1><span class="bt">Hesap</span></h1><div class="nrow top5">${TABS.map(([k,n,c])=>`<button class="nb ${st.tab===k?'on':''}" data-tab="${k}" style="--c:${c}">${n}</button>`).join('')}</div>
  <span class="topu">${st.tab==='hesap'?'':`${tbIcons()}<button class="btn undo" data-act="undo" data-tip="Geri al" ${ui.hist.length||ui.draft?'':'disabled'}>↶</button>`}</span>${st.tab!=='urun'?'':`<input class="q" id="q" placeholder="Ürün ara" value="${esc(st.q)}">`}</div>`+(()=>{try{return({urun:vUrun,maliyet:vMal,kargo:vKargo,satis:vSatis,hesap:vHesap}[st.tab])()}catch(err){console.error(err);return `<div class="card empty">Bu ekran açılamadı: ${esc(err.message)}</div>`}})()+(ui.modal?vModal():'')+(ui.files?vFiles():'')+(ui.offer?vOffer():'')+(ui.firma?vFirma():'');
- lockInputs();applySort();
+ lockInputs();applySort();freeze();
  window.scrollTo(0,fy);
  if(ae){const el=document.querySelector(`[data-set="${CSS.escape(ae)}"]`);el&&el.focus()}
 }
@@ -710,7 +710,7 @@ document.addEventListener('click',e=>{const c=e.target.closest('[data-clr]');if(
  save();render()},true);
 
 function lockInputs(){document.querySelectorAll('input.in[data-set],input.box[data-set]').forEach(i=>{if(i.dataset.set!==ui.edit)i.readOnly=true;else{i.readOnly=false}const dr=ui.draft?.[i.dataset.set];if(dr){i.value=dr.raw;i.classList.add('drf')}})}
-function toast(msg){ui.toastAt=Date.now();document.getElementById('toast')?.remove();const d=document.createElement('div');d.id='toast';d.textContent=msg;if(/silindi|kaldırıldı|temizlendi/i.test(msg))d.className='del';document.body.appendChild(d);{const tp=document.querySelector('.top');d.style.top=Math.max(10,(tp?tp.getBoundingClientRect().bottom:0)+4)+'px';d.style.bottom='auto'}let tO=setTimeout(()=>d.classList.add('out'),4000),tR=setTimeout(()=>d.remove(),4700);d.onmouseenter=()=>{clearTimeout(tO);clearTimeout(tR);d.classList.remove('out')};d.onmouseleave=()=>{tO=setTimeout(()=>d.classList.add('out'),1500);tR=setTimeout(()=>d.remove(),2200)}}
+function toast(msg){ui.toastAt=Date.now();document.getElementById('toast')?.remove();const d=document.createElement('div');d.id='toast';d.textContent=msg;if(/silindi|kaldırıldı|temizlendi/i.test(msg))d.className='del';document.body.appendChild(d);d.style.top='6px';d.style.bottom='auto';let tO=setTimeout(()=>d.classList.add('out'),4000),tR=setTimeout(()=>d.remove(),4700);d.onmouseenter=()=>{clearTimeout(tO);clearTimeout(tR);d.classList.remove('out')};d.onmouseleave=()=>{tO=setTimeout(()=>d.classList.add('out'),1500);tR=setTimeout(()=>d.remove(),2200)}}
 function cellSnap(){const m={};document.querySelectorAll('table.h3 tr[data-row]').forEach(tr=>[...tr.children].forEach((td,i)=>{const inp=td.querySelector('input');m[tr.dataset.row+'|'+i]=inp?(inp.value||inp.placeholder):td.textContent}));return m}
 function flash(){const P=ui.cellPrev;ui.cellPrev=null;if(!P)return;requestAnimationFrame(()=>document.querySelectorAll('table.h3 tr[data-row]').forEach(tr=>[...tr.children].forEach((td,i)=>{const inp=td.querySelector('input');const v=inp?(inp.value||inp.placeholder):td.textContent;const k=tr.dataset.row+'|'+i;if(k in P&&P[k]!==v){td.classList.add('chg');setTimeout(()=>td.classList.remove('chg'),4000)}})))}
 function doneMsg(m){m=(m||'').toLocaleLowerCase('tr');const L=[['silinsin','Silindi'],['temizlensin','Temizlendi'],['kaldırılsın','Kaldırıldı'],['eklensin','Eklendi'],['uygulansın','Uygulandı'],['değiştirilsin','Değiştirildi'],['kilitlensin','Kilitlendi'],['kilidi açılsın','Kilit açıldı'],['açılsın','Açıldı'],['yüklensin','Yüklendi'],['gizlensin','Gizlendi']];for(const[a,b]of L)if(m.includes(a))return b;return 'Tamam'}
@@ -1121,6 +1121,8 @@ document.addEventListener('contextmenu',e=>{if(st.tab!=='kargo')return;const tr=
 function openPast(){const cur=today().slice(0,7);return ayList().filter(a=>a<cur&&aySt(a)==='acik'&&st.sales.some(r=>ayOf(r.tarih)===a))}
 function lockNag(){if(ui.nagOff)return '';const L=openPast();if(!L.length)return '';
  return `<div class="nag">${IC.lock}<span><b>${L.map(ayAd).join(', ')}</b> bitti, kilitlensin mi?</span><button class="btn g" data-nag="1">Kilitle</button><button class="btn" data-nag="0">Sonra</button></div>`}
+/* kilit bildirimi günde en fazla 2 kez (Hesap'ın açılışında) */
+{const t=today();if(st.nagDay!==t){st.nagDay=t;st.nagN=0}if(openPast().length){if((st.nagN||0)>=2)ui.nagOff=1;else{st.nagN=(st.nagN||0)+1;try{localStorage.setItem(LS,JSON.stringify(st))}catch(_){}}}}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-nag]');if(!b)return;e.stopPropagation();if(b.dataset.nag==='0'){ui.nagOff=1;render();return}
  const bad=[];let n=0;for(const a of openPast()){const L=monthIssues(a);if(L.length)bad.push([a,L]);else{lockMonth(a);n++}}save();render();if(n)toast('Kilitlendi');
  if(bad.length){const el=document.querySelector('[data-nag]')||document.querySelector('.top h1');ui.nagOff=0;if(el)askC(el,bad.map(([a,L])=>issuesHTML(a,L)).join('<hr style="border:0;border-top:1px dashed var(--line);margin:8px 0">'),null)}},true);
@@ -1168,6 +1170,15 @@ document.addEventListener('mousedown',e=>{const m=document.querySelector('.hmenu
 
 document.addEventListener('change',e=>{const el=e.target;if(el.dataset?.cnot==null)return;e.stopImmediatePropagation();st.carNot=st.carNot||{};const v=el.value.trim();if(v)st.carNot[el.dataset.cnot]=v;else delete st.carNot[el.dataset.cnot];save();toast('Not kaydedildi')},true);
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset?.cnot!=null){e.preventDefault();e.target.blur()}},true);
+
+/* başlıkları ve ilk sütunu dondur: aşağı ya da sağa kayınca neyin altında/önünde olduğun görünsün */
+function freeze(){document.querySelectorAll('#app .scroll').forEach(sc=>{const tb=sc.querySelector('table');if(!tb)return;
+ const y=sc.getBoundingClientRect().top+scrollY;sc.style.maxHeight=Math.max(320,innerHeight-y-24)+'px';sc.classList.add('frz');
+ let top=0;for(const tr of tb.rows){if([...tr.cells].some(c=>c.tagName==='TD'))break;for(const c of tr.cells){c.style.position='sticky';c.style.top=top+'px';c.style.zIndex=3}top+=tr.offsetHeight}
+ const body=[...tb.rows].find(r=>r.querySelector('td.sku,td.dsk,td.stc'));if(!body)return;const cells=[...body.cells];const k=cells.findIndex(c=>c.matches('.sku,.dsk,.stc'));if(k<0)return;
+ const W=cells.slice(0,k+1).map(c=>c.getBoundingClientRect().width);
+ for(const tr of tb.rows){let col=0,left=0;for(const c of tr.cells){if(col>k)break;const sp=c.colSpan||1;if(col+sp-1<=k){c.style.position='sticky';c.style.left=left+'px';c.style.zIndex=c.tagName==='TH'?4:2;c.classList.add('frzc')}for(let j=0;j<sp;j++)left+=W[col+j]||0;col+=sp}}})}
+addEventListener('resize',()=>{clearTimeout(window._frzT);window._frzT=setTimeout(freeze,150)});
 </script>
 
 </body></html>
