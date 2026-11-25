@@ -3956,7 +3956,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '24.11.2026 · 4';
+const APP_VERSION = '25.11.2026';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4083,7 +4083,7 @@ function closeAllPanels() { closeHesap(); closePop(); [...openModals].forEach(m 
 
 /* Hesap (fiyat, satış, ürün, maliyet, kargo): Araçlar > Hesap. Her açışta PIN sorulur; ajanda kilitlenince kapanır.
    Kendi sayfasında (hesap.html) çalışır, yalnızca ajanda açıkken ve bu pencerenin içinde açılır. Verisi bu tarayıcıda durur, koda yazılı değildir. */
-function openHesap(hash = '') { askPin(() => showHesap(hash), 'Hesap', '#c9d6e3'); }
+function openHesap(hash = '') { askPin(() => showHesap(hash), 'Hesap', '#cfcac6'); }
 function showHesap(hash = '') {
   closeHesap(); [...openModals].forEach(m => m.close()); if (sideWin) sideWin.close();
   window.HESAP_OK = true;
