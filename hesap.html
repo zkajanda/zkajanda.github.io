@@ -228,7 +228,7 @@ if(!st.malAug2){st.mal=clone(D.maliyet);st.malAd=st.malAd||'Ağustos 2026';st.ma
 if(st.car?.UPS){st.car=Object.fromEntries(Object.entries(st.car).map(([k,v])=>[k==='UPS'?'Ups':k,v]));for(const k in st.sites)if(st.sites[k].car==='UPS')st.sites[k].car='Ups'}
 st.malHid=st.malHid||{};st.malOpen=st.malOpen||{};
 let ui={hist:[],codes:null,editH:null,editP:null,modal:null};
-const DK=['carNot','tHid','siteOrder','tcfg','tk','tc','carHid','ay','added','removed','scx','sites','prod','mal','car','urun','malHist','malFrom','malAd','malHid','toplu','fat','sales','musteri','firma','alici','hideZero'];
+const DK=['desiPlus','carNot','tHid','siteOrder','tcfg','tk','tc','carHid','ay','added','removed','scx','sites','prod','mal','car','urun','malHist','malFrom','malAd','malHid','toplu','fat','sales','musteri','firma','alici','hideZero'];
 const dataJ=()=>JSON.stringify(DK.map(k=>st[k]??null));let lastData=null;
 const save=()=>{const d=dataJ();if(lastData!=null&&d!==lastData){ui.hist.push(lastData);if(ui.hist.length>30)ui.hist.shift()}lastData=d;try{localStorage.setItem(LS,JSON.stringify(st))}catch(e){}};
 function undoAll(){const p=ui.hist.pop();if(!p)return;ui.cellPrev=cellSnap();JSON.parse(p).forEach((v,i)=>{if(v==null)delete st[DK[i]];else st[DK[i]]=v});lastData=p;syncCodes();setTimeout(()=>{toast('Geri alındı');flash()},30)}
@@ -253,7 +253,7 @@ function malUyari(k){const s=st.sites[k],fark=[];const ix=SRCI[srcOf(k,'s')];for
  if(!m)continue;const v=m[ix];if(r[4]!=null&&v!=null&&v!==''&&Math.abs(+r[4]-+v)>0.5)fark.push([base(sku),r[4],v])}
  return{fark}}
 /* ölçü önce Ürün sayfasından (kodu ya da maliyet kodu bu olan ilk ürün), yoksa site satırından, yoksa eski listeden */
-function kgWarn(k,sku){const s=st.sites[k],r=s.rows[sku];if(r&&r[5]!=null&&r[5]!=='')return '';const d=desi(sku,k);if(d==null)return 'Ölçü yok · Ürün sayfasında ölçüsünü yazın';const t=s.car!=='Site'&&st.car[s.car]?st.car[s.car]:s.tab;if(!t||!t.length)return 'Kargo tablosu boş';if(!t.some(x=>x[0]===d&&x[1]!=null))return d+' desi kargo tablosunda yok';return ''}
+function kgWarn(k,sku){const s=st.sites[k],r=s.rows[sku];if(r&&r[5]!=null&&r[5]!=='')return '';const d=desi(sku,k);if(d==null)return 'Ölçü yok · Ürün sayfasında ölçüsünü yazın';const t=s.car!=='Site'&&st.car[s.car]?st.car[s.car]:s.tab;if(!t||!t.length)return 'Kargo tablosu boş';if(!t.some(x=>x[0]===d&&x[1]!=null)){const lo=t.filter(x=>x[0]<d&&x[1]!=null).sort((a,b)=>b[0]-a[0])[0];if(!(lo&&st.desiPlus?.[lo[0]]))return d+' desi kargo tablosunda yok'}return ''}
 function urunOlc(sku){const b=base(sku);const L=st.urun||[];const u=L.find(x=>x.kod===b&&x.b&&x.e&&x.y)||L.find(x=>x.mk===b&&x.b&&x.e&&x.y);return u?[u.b,u.e,u.y]:null}
 function desi(sku,k){const uo=urunOlc(sku);return uo?Math.ceil(uo[0]*uo[1]*uo[2]/3000):null}
 function look(t,d){if(!t||!t.length)return 0;const s=[...t].sort((a,b)=>a[0]-b[0]);let v=s[0][1];for(const[x,p]of s)if(x<=d&&p!=null)v=p;return +v||0}
@@ -274,11 +274,11 @@ const prodOpts=(skip={})=>Object.keys(st.prod).filter(s=>!skip[s]).sort((a,b)=>a
 /* ---------- render ---------- */
 const TABS=[['hesap','FİYAT','#bba4b2'],['satis','SATIŞ','#b5c5b9'],['urun','ÜRÜN','#cdc5cb'],['maliyet','MALİYET','#dbb6bc'],['kargo','KARGO','#f0c6ae']];
 function render(){
- const a=document.getElementById('app'),fy=window.scrollY,ae=document.activeElement?.dataset?.set;
+ const a=document.getElementById('app'),fy=window.scrollY,ae=document.activeElement?.dataset?.set;const scK=st.tab+'|'+(st.site||''),scP=ui.scK===scK?[...a.querySelectorAll('.scroll')].map(x=>[x.scrollTop,x.scrollLeft]):[];ui.scK=scK;
  a.innerHTML=lockNag()+`<div class="top"><h1><span class="bt">Hesap</span></h1><div class="nrow top5">${TABS.map(([k,n,c])=>`<button class="nb ${st.tab===k?'on':''}" data-tab="${k}" style="--c:${c}">${n}</button>`).join('')}</div>
  <span class="topu">${st.tab==='hesap'?'':`${tbIcons()}<button class="btn undo" data-act="undo" data-tip="Geri al" ${ui.hist.length||ui.draft?'':'disabled'}>↶</button>`}</span>${st.tab!=='urun'?'':`<input class="q" id="q" placeholder="Ürün ara" value="${esc(st.q)}">`}</div>`+(()=>{try{return({urun:vUrun,maliyet:vMal,kargo:vKargo,satis:vSatis,hesap:vHesap}[st.tab])()}catch(err){console.error(err);return `<div class="card empty">Bu ekran açılamadı: ${esc(err.message)}</div>`}})()+(ui.modal?vModal():'')+(ui.files?vFiles():'')+(ui.offer?vOffer():'')+(ui.firma?vFirma():'');
  lockInputs();applySort();freeze();
- window.scrollTo(0,fy);
+ window.scrollTo(0,fy);a.querySelectorAll('.scroll').forEach((x,i)=>{if(scP[i]){x.scrollTop=scP[i][0];x.scrollLeft=scP[i][1]}});
  if(ae){const el=document.querySelector(`[data-set="${CSS.escape(ae)}"]`);el&&el.focus()}
 }
 const nvx=n=>n==null||n===''?'':typeof n!=='number'?n:n.toLocaleString('tr-TR',{maximumFractionDigits:2});
@@ -339,7 +339,7 @@ function vKargo(){
  const map=`<div class="kmap">${CODES.map(k=>`<label class="kcell" style="--sc:${SC[k]}"><span>${k}</span><select data-site-car="${k}">${[['Site','—'],...C.map(c=>[c,c])].map(([v,n])=>`<option value="${v}" ${st.sites[k].car===v?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}</div>`;
  const ds=[...new Set(C.flatMap(c=>st.car[c].map(r=>r[0])))].sort((a,b)=>a-b);
  const users=c=>CODES.filter(k=>st.sites[k].car===c).map(k=>`<span class="dot" title="${k}" style="background:${SC[k]};margin:0 1px"></span>`).join('');
- const rows=ds.map(d=>`<tr data-desi="${d}"><td class="b dsk">${inp(`desi|${d}`,d,{c:'s'})}</td>${C.map(c=>{if(st.carHid?.[c])return `<td class="hcol" data-carshow="${esc(c)}"></td>`;const r=st.car[c].find(x=>x[0]===d);return `<td>${inp(`car|${c}|${d}`,r?.[1],{c:'s'})}</td>`}).join('')}<td></td></tr>`).join('');
+ const rows=ds.map(d=>`<tr data-desi="${d}"><td class="b dsk">${inp(`desi|${d}`,d+(st.desiPlus?.[d]?'+':''),{t:'txt',c:'s'})}</td>${C.map(c=>{if(st.carHid?.[c])return `<td class="hcol" data-carshow="${esc(c)}"></td>`;const r=st.car[c].find(x=>x[0]===d);return `<td>${inp(`car|${c}|${d}`,r?.[1],{c:'s'})}</td>`}).join('')}<td></td></tr>`).join('');
  return `<div class="card">${map}<div class="scroll"><table class="h3 eq"><tr><th>Desi</th>${C.map(c=>st.carHid?.[c]?`<th class="hcol" data-carshow="${esc(c)}" data-tip="${esc(c)} gizli · göstermek için tıkla"></th>`:`<th>${ui.cedit===c?`<input class="box cin" id="cIn" value="${esc(c)}" data-c="${esc(c)}">`:`<span class="carn" data-carname="${esc(c)}" data-tip="Çift tık: adı değiştir · Sağ tık: sil">${esc(c)}</span>`}<input class="cnot" data-cnot="${esc(c)}" value="${esc(st.carNot?.[c]||'')}" data-tip="Not"><div class="kus">${users(c)}</div><div class="carctl">${C.indexOf(c)>0?`<i data-cmv="${esc(c)}|l" data-tip="Sola al">‹</i>`:'<i></i>'}<i data-chide="${esc(c)}" data-tip="Gizle">–</i>${C.indexOf(c)<C.length-1?`<i data-cmv="${esc(c)}|r" data-tip="Sağa al">›</i>`:'<i></i>'}</div></th>`).join('')}<th class="kadd" data-act="addcar" data-tip="Firma ekle">+</th></tr>${rows}
  <tr class="newfat"><td><input class="in s" id="ndesi" placeholder="Desi"></td>${C.map(()=>'<td></td>').join('')}<td></td></tr></table></div></div>`}
 /* ---------- satış ---------- */
@@ -588,10 +588,12 @@ function mPrev(){mRead();const m=ui.modal,f=(m.yon==='zam'?1:-1)*m.pct/100,q=m.q
 function snap(){ui.cellPrev=cellSnap()}
 
 /* ---------- set ---------- */
+const parseDesi=v=>{const m=/^\s*(\d+(?:[.,]\d+)?)\s*(\+)?\s*$/.exec(String(v??''));return m?{d:+m[1].replace(',','.'),plus:!!m[2]}:null};
+function setPlus(d,p){st.desiPlus=st.desiPlus||{};if(p)st.desiPlus[d]=1;else delete st.desiPlus[d]}
 function setVal(path,raw,t){const P=path.split('|');let v=raw;
  if(t==='num'||t==='pct'){let s=String(raw).trim();if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s))s=s.replace(/\./g,'');s=s.replace(',','.');v=s===''?null:+s;if(isNaN(v))v=null;if(t==='pct'&&v!=null)v=v/100}
  const[h,...r]=P;
- if(h==='desi'){const o=+r[0];if(v==null){for(const c in st.car)st.car[c]=st.car[c].filter(x=>x[0]!==o);return}if(v===o)return;if(Object.values(st.car).some(t=>t.some(x=>x[0]===v))){setTimeout(()=>toast('Bu desi zaten var'),100);return}for(const c in st.car)for(const x of st.car[c])if(x[0]===o)x[0]=v;return}
+ if(h==='desi'){const o=+r[0];if(String(raw).trim()===''){for(const c in st.car)st.car[c]=st.car[c].filter(x=>x[0]!==o);setPlus(o,0);return}const pd=parseDesi(raw);if(!pd){setTimeout(()=>toast('Desi sayı olmalı, örneğin 20 ya da 20+'),100);return}v=pd.d;if(v===o){setPlus(o,pd.plus);return}if(Object.values(st.car).some(t=>t.some(x=>x[0]===v))){setTimeout(()=>toast('Bu desi zaten var'),100);return}setPlus(o,0);setPlus(v,pd.plus);if(v===o)return;if(Object.values(st.car).some(t=>t.some(x=>x[0]===v))){setTimeout(()=>toast('Bu desi zaten var'),100);return}for(const c in st.car)for(const x of st.car[c])if(x[0]===o)x[0]=v;return}
  if(h==='car'){const t2=st.car[r[0]],d=+r[1],i=t2.findIndex(x=>x[0]===d);if(v==null){if(i>=0)t2.splice(i,1)}else if(i>=0)t2[i][1]=v;else t2.push([d,v]);return}
  if(h==='stab'){const t2=st.sites[r[0]].tab,d=+r[1],i=t2.findIndex(x=>x[0]===d);if(v==null){if(i>=0)t2.splice(i,1)}else if(i>=0)t2[i][1]=v;else t2.push([d,v]);return}
  if(h==='vw'){const it=st.sites.VW.vw.items[r[0]];it[r[1]]=v;return}
@@ -614,6 +616,7 @@ document.addEventListener('change',e=>{const el=e.target;
  if(el.dataset.set&&el.dataset.draft){ui.edit=null;el.readOnly=true;const old=el.dataset.orig??el.defaultValue;if(el.value!==old){ui.draft=ui.draft||{};ui.draft[el.dataset.set]={raw:el.value,t:el.dataset.t}}render();return}
  if(el.dataset.set){const path=el.dataset.set,raw=el.value,ty=el.dataset.t,old=el.dataset.orig??el.defaultValue;ui.edit=null;el.readOnly=true;
   if(raw===old){render();return}
+  if(String(old).trim()===''){setVal(path,raw,ty);save();render();return}   /* boş hücreye ilk yazış sorulmaz */
   askC(el,raw.trim()===''?'Silinsin mi?':'Değiştirilsin mi?',()=>setVal(path,raw,ty));return}
  if(el.dataset.fatset){const[id,k]=el.dataset.fatset.split('|'),x=st.fat.find(z=>z.id===id);if(x)x[k]=el.value;save();render();return}
  if(el.dataset.mt){const k=el.dataset.mt,v=el.value;askC(el,'Değiştirilsin mi?',()=>{st.sites[k].mt=v});return}
@@ -692,7 +695,7 @@ function addRow(){const m=ui.menu,T=tbl(),sku=(document.getElementById('mAdd').v
  if(!st.prod[sku])st.prod[sku]={ad:'',barkod:'',asin:'',b:null,e:null,y:null,kod:{}};
  T.set(insertKey(T.rows,sku,T.newRow(),m.sku,m.after));ui.menu=null;ui.edit=T.focus(sku);save();render();
  const el=document.querySelector(`[data-set="${CSS.escape(T.focus(sku))}"]`);el&&(el.dataset.orig=el.value,el.focus(),el.select())}
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='mAdd')addRow();if(e.key==='Enter'&&e.target.id==='ndesi'){const d=+e.target.value.replace(',','.');if(d){const f=Object.keys(st.car)[0];if(!st.car[f].some(x=>x[0]===d))st.car[f].push([d,null]);save();render()}return}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='mAdd')addRow();if(e.key==='Enter'&&e.target.id==='ndesi'){const pd=parseDesi(e.target.value);if(!pd){toast('Desi sayı olmalı, örneğin 20 ya da 20+');return}const d=pd.d;if(Object.values(st.car).some(t=>t.some(x=>x[0]===d))){toast('Bu desi zaten var');return}const f=Object.keys(st.car)[0];st.car[f].push([d,null]);setPlus(d,pd.plus);save();render();return}
  if(e.key==='Enter'&&e.target.closest?.('tr.newfat'))addFat()});
 
 function edge(tr,e){const td=e.target.closest?.('td.sku,td.dsk');if(!td||e.target.closest('input'))return 0;const r=td.getBoundingClientRect();return r.bottom-e.clientY<=4?1:0}
@@ -1108,7 +1111,7 @@ document.addEventListener('contextmenu',e=>{if(st.tab!=='hesap'||st.site!=='TOPL
  d.addEventListener('click',ev=>{const b=ev.target.closest('[data-tf]');if(!b)return;ev.stopPropagation();d.remove();if(b.dataset.tf==='1')doFill(fi);else if(b.dataset.tf==='only')onlyPick(e);else{const k=tr.dataset.trow;askC(tr.querySelector('td'),`${k} silinsin mi?`,()=>{delete st.toplu[k]})}})},true);
 /* TOPLU: ürün kodunun alt çizgisine tıklayınca altına ekle */
 document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-desi]');if(!tr||!edge(tr,e))return;e.stopPropagation();
- askText(tr.querySelector('td'),'Yeni desi',v=>{const d=+String(v).replace(',','.');if(!d)return;if(Object.values(st.car).some(t=>t.some(x=>x[0]===d))){toast('Bu desi zaten var');return}const f=Object.keys(st.car)[0];st.car[f].push([d,null]);save();render();toast(d+' desi eklendi')})},true);
+ askText(tr.querySelector('td'),'Yeni desi',v=>{const pd=parseDesi(v);if(!pd){toast('Desi sayı olmalı, örneğin 20 ya da 20+');return}const d=pd.d;setPlus(d,pd.plus);if(Object.values(st.car).some(t=>t.some(x=>x[0]===d))){toast('Bu desi zaten var');return}const f=Object.keys(st.car)[0];st.car[f].push([d,null]);save();render();toast(d+' desi eklendi')})},true);
 document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-trow]');if(!tr||!edge(tr,e))return;e.stopPropagation();const after=tr.dataset.trow;closeAsk();
  const r=tr.getBoundingClientRect(),d=document.createElement('div');d.id='askp';d.className='cmenu';d.style.left=(r.left+8)+'px';d.style.top=(r.bottom+4)+'px';
  const opts=[...new Set([...Object.keys(st.mal),...Object.keys(st.prod)])].filter(x=>!st.toplu[x]).sort((a,b)=>a.localeCompare(b,'tr'));
@@ -1179,6 +1182,22 @@ function freeze(){document.querySelectorAll('#app .scroll').forEach(sc=>{const t
  const W=cells.slice(0,k+1).map(c=>c.getBoundingClientRect().width);
  for(const tr of tb.rows){let col=0,left=0;for(const c of tr.cells){if(col>k)break;const sp=c.colSpan||1;if(col+sp-1<=k){c.style.position='sticky';c.style.left=left+'px';c.style.zIndex=c.tagName==='TH'?4:2;c.classList.add('frzc')}for(let j=0;j<sp;j++)left+=W[col+j]||0;col+=sp}}})}
 addEventListener('resize',()=>{clearTimeout(window._frzT);window._frzT=setTimeout(freeze,150)});
+
+/* yön tuşlarıyla hücreler arasında gezinme (Enter = aşağı). Gezinirken yazılan değer sorulmadan kaydedilir; boşaltma yine sorulur. */
+function navTarget(inp,key){const td=inp.closest('td'),tr=td?.closest('tr');if(!tr)return null;const ci=td.cellIndex,ok=c=>c&&c.querySelector('input[data-set]');
+ if(key==='ArrowLeft'||key==='ArrowRight'){let c=td;do{c=key==='ArrowLeft'?c.previousElementSibling:c.nextElementSibling}while(c&&!ok(c));return c?.querySelector('input[data-set]')||null}
+ let r=tr;do{r=key==='ArrowUp'?r.previousElementSibling:r.nextElementSibling}while(r&&!ok(r.cells[ci]));return r?.cells[ci]?.querySelector('input[data-set]')||null}
+document.addEventListener('keydown',e=>{const i=e.target;if(!i.matches?.('table input[data-set]')||i.readOnly)return;
+ let k=e.key;if(k==='Enter')k='ArrowDown';if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))return;
+ if(k==='ArrowLeft'||k==='ArrowRight'){const a=i.selectionStart,b=i.selectionEnd,L=i.value.length,all=a===0&&b===L;if(!all&&!(a===b&&(k==='ArrowLeft'?a===0:a===L)))return}
+ const tg=navTarget(i,k);e.preventDefault();e.stopPropagation();
+ const path=i.dataset.set,raw=i.value,t=i.dataset.t,old=i.dataset.orig??i.defaultValue,tp=tg?.dataset.set;
+ if(raw!==old&&raw.trim()===''){i.blur();return}   /* boşaltma: normal soru çıksın */
+ i.dataset.nav=1;
+ if(raw!==old){if(i.dataset.draft){ui.draft=ui.draft||{};ui.draft[path]={raw,t}}else{setVal(path,raw,t);save()}}
+ ui.edit=tp||null;render();
+ if(tp){const n=document.querySelector(`[data-set="${CSS.escape(tp)}"]`);if(n){n.readOnly=false;if(n.dataset.x)n.value=n.dataset.x;n.dataset.orig=n.value;n.focus();n.select();n.scrollIntoView({block:'nearest',inline:'nearest'})}}},true);
+document.addEventListener('change',e=>{if(e.target.dataset?.nav){e.stopImmediatePropagation();delete e.target.dataset.nav}},true);
 </script>
 
 </body></html>

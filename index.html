@@ -258,7 +258,7 @@ select:focus, input:focus, textarea:focus { border-color: #c4aeb6; }
 #hesapWin { position: fixed; inset: 0; z-index: 80; background: #f2ece7; }
 #hesapWin iframe { width: 100%; height: 100%; border: 0; display: block; }
 #hesapWin .hesap-act { position: absolute; top: 12px; right: 14px; z-index: 2; display: flex; gap: 2px; background: rgba(255,252,248,.8); border-radius: 12px; }
-#hesapWin.side { left: auto; width: min(62vw, 100vw); min-width: min(560px, 100vw); box-shadow: -10px 0 30px -18px rgba(62,53,54,.45); border-radius: 18px 0 0 18px; overflow: hidden; }
+#hesapWin.side { left: auto; width: var(--side-w, 60vw); min-width: min(560px, 100vw); box-shadow: -10px 0 30px -18px rgba(62,53,54,.45); border-radius: 18px 0 0 18px; overflow: hidden; }
 /* ---------- Modal pencereler ---------- */
 .overlay {
   position: fixed; inset: 0; z-index: 70; background: rgba(70, 58, 58, .28);
@@ -3956,7 +3956,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '25.11.2026';
+const APP_VERSION = '25.11.2026 · 2';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4092,9 +4092,10 @@ function showHesap(hash = '') {
   document.body.appendChild(w);
   $('.hesap-act', w).onclick = e => { const b = e.target.closest('[data-h]'); if (!b) return;
     if (b.dataset.h === 'close') return closeHesap();
-    const side = w.classList.toggle('side'); b.title = side ? 'Tam ekran' : 'Yana al'; };
+    const side = w.classList.toggle('side'); b.title = side ? 'Tam ekran' : 'Yana al';
+    document.body.classList.toggle('has-side', side); if (side) document.body.style.setProperty('--side-w', 'min(60vw, 100vw - 420px)'); else document.body.style.removeProperty('--side-w'); };
 }
-function closeHesap() { const w = $('#hesapWin'); if (w) w.remove(); window.HESAP_OK = false; }
+function closeHesap() { const w = $('#hesapWin'); if (w) { if (w.classList.contains('side') && !sideWin) { document.body.classList.remove('has-side'); document.body.style.removeProperty('--side-w'); } w.remove(); } window.HESAP_OK = false; }
 /* Hesap paneli (ev tuşu) */
 function renderAccount(edit = false) {
   const p = $('#accountPop');
