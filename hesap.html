@@ -699,7 +699,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='mAdd'
  if(e.key==='Enter'&&e.target.closest?.('tr.newfat'))addFat()});
 
 function edge(tr,e){const td=e.target.closest?.('td.sku,td.dsk');if(!td||e.target.closest('input'))return 0;const r=td.getBoundingClientRect();return r.bottom-e.clientY<=4?1:0}
-document.addEventListener('mousemove',e=>{const old=document.querySelector('tr.addT,tr.addB');const tr=e.target.closest?.('tr[data-row],tr[data-trow],tr[data-desi]');let d=0;if(tr&&!ui.menu)d=edge(tr,e);
+document.addEventListener('mousemove',e=>{const old=document.querySelector('tr.addT,tr.addB');const tr=e.target.closest?.('tr[data-row],tr[data-trow],tr[data-desi],tr[data-urow]');let d=0;if(tr&&!ui.menu)d=edge(tr,e);
  if(old&&(old!==tr||!d))old.classList.remove('addT','addB');if(tr&&d){tr.classList.toggle('addT',d<0);tr.classList.toggle('addB',d>0)}});
 
 document.addEventListener('click',e=>{const c=e.target.closest('[data-clr]');if(!c)return;e.stopPropagation();if(!c.dataset.okd){askC(c,'Temizlensin mi?',()=>{c.dataset.okd=1;c.click()});return}delete c.dataset.okd;snap();setTimeout(()=>{toast('Uygulandı');flash()},30);const k=st.site,s=st.sites[k];s.top=s.top||{};const id=c.dataset.clr;
@@ -919,8 +919,9 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-gtog],[dat
 document.addEventListener('contextmenu',e=>{if(st.tab!=='urun')return;const tr=e.target.closest('tr[data-urow]');if(!tr)return;e.preventDefault();closeAsk();
  const i=+tr.dataset.urow,td=e.target.closest('[data-uf]'),f=td?.dataset.uf,u=st.urun[i];
  const d=document.createElement('div');d.id='askp';d.className='cmenu umenu';d.style.left=Math.min(e.clientX,innerWidth-170)+'px';d.style.top=Math.min(e.clientY,innerHeight-100)+'px';
- d.innerHTML=`<button class="mi neg" data-um="del">Sil</button>`;document.body.appendChild(d);
+ d.innerHTML=`<button class="mi" data-um="up">↑ Yukarı taşı</button><button class="mi" data-um="dn">↓ Aşağı taşı</button><button class="mi neg" data-um="del">Sil</button>`;document.body.appendChild(d);
  d.addEventListener('click',ev=>{const b=ev.target.closest('[data-um]');if(!b)return;ev.stopPropagation();d.remove();
+  if(b.dataset.um==='up'||b.dataset.um==='dn'){const j=b.dataset.um==='up'?i-1:i+1;if(st.urun[j]&&st.urun[j].g===u.g){st.urun[i]=st.urun[j];st.urun[j]=u;save();render()}return}
   if(b.dataset.um==='del')askC(tr.querySelector('td'),'Silinsin mi?',()=>{st.urun.splice(i,1)});
   else askText(td,'Not',v=>{u.not=u.not||{};if(v)u.not[f]=v;else delete u.not[f]},u.not?.[f]||'','Kaydet')})},true);
 document.addEventListener('mousedown',e=>{const m=document.querySelector('.umenu');if(m&&!m.contains(e.target))m.remove()},true);
@@ -1110,6 +1111,8 @@ document.addEventListener('contextmenu',e=>{if(st.tab!=='hesap'||st.site!=='TOPL
  d.innerHTML=`${fi?'<button class="mi" data-tf="1">⇣ Tümüne uygula</button>':''}<button class="mi neg" data-tf="del">Sil</button>`;document.body.appendChild(d);ui.askOk=null;
  d.addEventListener('click',ev=>{const b=ev.target.closest('[data-tf]');if(!b)return;ev.stopPropagation();d.remove();if(b.dataset.tf==='1')doFill(fi);else if(b.dataset.tf==='only')onlyPick(e);else{const k=tr.dataset.trow;askC(tr.querySelector('td'),`${k} silinsin mi?`,()=>{delete st.toplu[k]})}})},true);
 /* TOPLU: ürün kodunun alt çizgisine tıklayınca altına ekle */
+document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-urow]');if(!tr||st.tab!=='urun'||!edge(tr,e))return;e.stopPropagation();const i=+tr.dataset.urow,g=st.urun[i].g;
+ askText(tr.querySelector('td'),'Ürün kodu',v=>{v=(v||'').trim();if(!v)return;if(st.urun.some(u=>u.kod===v)){toast('Bu kod zaten var');return}st.urun.splice(i+1,0,{g,kod:v,ad:'',barkod:'',asin:'',ty:'',hb:'',on:{}});save();render();toast(v+' eklendi')})},true);
 document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-desi]');if(!tr||!edge(tr,e))return;e.stopPropagation();
  askText(tr.querySelector('td'),'Yeni desi',v=>{const pd=parseDesi(v);if(!pd){toast('Desi sayı olmalı, örneğin 20 ya da 20+');return}const d=pd.d;setPlus(d,pd.plus);if(Object.values(st.car).some(t=>t.some(x=>x[0]===d))){toast('Bu desi zaten var');return}const f=Object.keys(st.car)[0];st.car[f].push([d,null]);save();render();toast(d+' desi eklendi')})},true);
 document.addEventListener('click',e=>{const tr=e.target.closest('tr[data-trow]');if(!tr||!edge(tr,e))return;e.stopPropagation();const after=tr.dataset.trow;closeAsk();
