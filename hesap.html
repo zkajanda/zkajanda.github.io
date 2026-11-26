@@ -306,7 +306,7 @@ function vUrun(){
   if(cl)continue;
   st.uHid=st.uHid||{};let pend=[];const flushU=()=>{if(pend.length){body+=`<tr class="hidline" data-uunhide="${esc(pend.join('\u0001'))}" title="${esc(pend.join(', '))}"><td colspan="${N}"></td></tr>`;pend=[]}};
   for(const i of idx){const u=U[i],d=u.b&&u.e&&u.y?Math.ceil(u.b*u.e*u.y/3000):'';if(!q&&st.uHid[u.kod]){pend.push(u.kod);continue}flushU();
-   body+=`<tr data-urow="${i}"><td class="sku l"><span class="arr" data-uhide="${esc(u.kod)}" data-tip="Gizle">▸</span>${inp(`u|${i}|kod`,u.kod,{t:'str',c:'k'})}</td><td class="l${nc(u,'ad')}" data-uf="ad"${nt(u,'ad')}>${inp(`u|${i}|ad`,u.ad,{t:'str',c:'w'})}</td><td class="l mkc ${u.mk&&!st.mal[u.mk]?'uwh':''}" ${u.mk&&!st.mal[u.mk]?'title="Maliyet listesinde yok"':''}>${inp(`u|${i}|mk`,u.mk||'',{t:'str',c:'mk'})}</td><td class="olc ${u.b&&u.e&&u.y?'':'wcell'}" ${u.b&&u.e&&u.y?'':'title="Ölçü eksik"'}>${inp(`u|${i}|b`,u.b,{c:'s'})}<i>×</i>${inp(`u|${i}|e`,u.e,{c:'s'})}<i>×</i>${inp(`u|${i}|y`,u.y,{c:'s'})}</td><td class="dsc">${u.b&&u.e&&u.y?Math.ceil(u.b*u.e*u.y/3000):''}</td>
+   body+=`<tr data-urow="${i}"><td class="sku l"><span class="arr" data-uhide="${esc(u.kod)}" data-tip="Gizle">▸</span>${inp(`u|${i}|kod`,u.kod,{t:'str',c:'k'})}</td><td class="l${nc(u,'ad')}" data-uf="ad"${nt(u,'ad')}>${inp(`u|${i}|ad`,u.ad,{t:'str',c:'w'})}</td><td class="l mkc ${u.mk&&!st.mal[u.mk]?'uwh':''}" ${u.mk&&!st.mal[u.mk]?'title="Maliyet listesinde yok"':''}>${inp(`u|${i}|mk`,u.mk||'',{t:'str',c:'mk'})}</td><td class="olc ${u.b&&u.e&&u.y?'':'wcell'}" >${inp(`u|${i}|b`,u.b,{c:'s'})}<i>×</i>${inp(`u|${i}|e`,u.e,{c:'s'})}<i>×</i>${inp(`u|${i}|y`,u.y,{c:'s'})}</td><td class="dsc">${u.b&&u.e&&u.y?Math.ceil(u.b*u.e*u.y/3000):''}</td>
    <td class="l" data-uf="barkod">${inp(`u|${i}|barkod`,u.barkod,{t:'str',c:'m'})}</td><td class="l bxc" data-uf="asin">${inp(`u|${i}|asin`,u.asin,{t:'str',c:'a'})}${bxChip(u,i,'asin')}</td><td class="l bxc" data-uf="ty">${inp(`u|${i}|ty`,u.ty,{t:'str',c:'m'})}${bxChip(u,i,'ty')}</td><td class="l bxc" data-uf="hb">${inp(`u|${i}|hb`,u.hb,{t:'str',c:'m'})}${bxChip(u,i,'hb')}</td>
    ${CODES.map(k=>{const o=!!u.on?.[k],g=o&&pfx(k,u.kod),w=o&&g&&!priced(k,g);return `<td class="sd"><span class="sdot ${o?'on':''} ${w?'uw':''}" style="--sc:${SC[k]}" data-utog="${i}|${esc(k)}" title="${k}${w?' · Hesap sayfasında fiyatı yok':''}"></span></td>`}).join('')}</tr>`}flushU()}
  return `<div class="card"><div class="bar"><button class="btn" data-act="addgrp">+ Kategori</button></div><div class="scroll"><table class="h3 urun">
@@ -1202,12 +1202,12 @@ function freeze(){document.querySelectorAll('#app .scroll').forEach(sc=>{const t
 addEventListener('resize',()=>{clearTimeout(window._frzT);window._frzT=setTimeout(freeze,150)});
 
 /* yön tuşlarıyla hücreler arasında gezinme (Enter = aşağı). Gezinirken yazılan değer sorulmadan kaydedilir; boşaltma yine sorulur. */
-function navTarget(inp,key){const td=inp.closest('td'),tr=td?.closest('tr');if(!tr)return null;const ci=td.cellIndex,ok=c=>c&&c.querySelector('input[data-set]');
- if(key==='ArrowLeft'||key==='ArrowRight'){let c=td;do{c=key==='ArrowLeft'?c.previousElementSibling:c.nextElementSibling}while(c&&!ok(c));return c?.querySelector('input[data-set]')||null}
- let r=tr;do{r=key==='ArrowUp'?r.previousElementSibling:r.nextElementSibling}while(r&&!ok(r.cells[ci]));return r?.cells[ci]?.querySelector('input[data-set]')||null}
-document.addEventListener('keydown',e=>{const i=e.target;if(!i.matches?.('table input[data-set]')||i.readOnly)return;
- let k=e.key;if(k==='Enter')k='ArrowDown';if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))return;
- if(k==='ArrowLeft'||k==='ArrowRight'){const a=i.selectionStart,b=i.selectionEnd,L=i.value.length,all=a===0&&b===L;if(!all&&!(a===b&&(k==='ArrowLeft'?a===0:a===L)))return}
+function navTarget(inp,key){const td=inp.closest('td'),tr=td?.closest('tr');if(!tr)return null;const ci=td.cellIndex,ok=c=>c&&c.querySelector('input[data-set]'),ins=c=>[...c.querySelectorAll('input[data-set]')],k=ins(td).indexOf(inp);
+ if(key==='ArrowLeft'||key==='ArrowRight'){const sib=ins(td)[k+(key==='ArrowLeft'?-1:1)];if(sib)return sib;let c=td;do{c=key==='ArrowLeft'?c.previousElementSibling:c.nextElementSibling}while(c&&!ok(c));if(!c)return null;const L=ins(c);return key==='ArrowLeft'?L[L.length-1]:L[0]}
+ let r=tr;do{r=key==='ArrowUp'?r.previousElementSibling:r.nextElementSibling}while(r&&!ok(r.cells[ci]));if(!r)return null;const L=ins(r.cells[ci]);return L[Math.min(k,L.length-1)]||null}
+document.addEventListener('keydown',e=>{const i=e.target;if(e.defaultPrevented||document.getElementById('askp')||!document.contains(i))return;if(!i.matches?.('table input[data-set]')||i.readOnly)return;
+ let k=e.key;const tab=k==='Tab';if(k==='Enter')k='ArrowDown';if(tab)k=e.shiftKey?'ArrowLeft':'ArrowRight';if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k))return;
+ if(!tab&&(k==='ArrowLeft'||k==='ArrowRight')){const a=i.selectionStart,b=i.selectionEnd,L=i.value.length,all=a===0&&b===L;if(!all&&!(a===b&&(k==='ArrowLeft'?a===0:a===L)))return}
  const tg=navTarget(i,k);e.preventDefault();e.stopPropagation();
  const path=i.dataset.set,raw=i.value,t=i.dataset.t,old=i.dataset.orig??i.defaultValue,tp=tg?.dataset.set;
  if(raw!==old&&raw.trim()===''){i.blur();return}   /* boşaltma: normal soru çıksın */
@@ -1216,6 +1216,8 @@ document.addEventListener('keydown',e=>{const i=e.target;if(!i.matches?.('table 
  if(raw!==old){if(i.dataset.draft){ui.draft=ui.draft||{};ui.draft[path]={raw,t}}else{setVal(path,raw,t);save()}}
  ui.edit=tp||null;render();
  if(tp){const n=document.querySelector(`[data-set="${CSS.escape(tp)}"]`);if(n){n.readOnly=false;if(n.dataset.x)n.value=n.dataset.x;n.dataset.orig=n.value;n.focus();n.select();n.scrollIntoView({block:'nearest',inline:'nearest'})}}},true);
+/* fareyle başka hücreye tıklayınca: önceki hücre kaydedilip sayfa yenilense de tıklanan hücre açık kalsın */
+document.addEventListener('mousedown',e=>{const c=document.activeElement;if(e.button||!c?.matches?.('table input[data-set]')||c.readOnly||document.getElementById('askp'))return;let t=e.target.closest?.('input[data-set]');if(!t){const td=e.target.closest?.('td'),L=td?td.querySelectorAll('input[data-set]'):[];if(L.length===1)t=L[0]}if(t&&t!==c&&t.closest('table'))ui.navPending=t.dataset.set},true);
 document.addEventListener('change',e=>{if(e.target.dataset?.nav){e.stopImmediatePropagation();delete e.target.dataset.nav}},true);
 
 /* kategori (grup) başlığına sağ tık: yukarı / aşağı taşı */
