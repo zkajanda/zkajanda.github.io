@@ -255,7 +255,7 @@ select:focus, input:focus, textarea:focus { border-color: #c4aeb6; }
 .tones .sw.thin { width: 34px; height: 12px; }
 
 /* Hesap penceresi: tam ekran */
-#hesapWin { position: fixed; inset: 0; z-index: 80; background: #f2ece7; }
+#hesapWin { position: fixed; inset: 0; z-index: 60; background: #f2ece7; }
 #hesapWin iframe { width: 100%; height: 100%; border: 0; display: block; }
 #hesapWin .hesap-act { position: absolute; top: 12px; right: 14px; z-index: 2; display: flex; gap: 2px; background: rgba(255,252,248,.8); border-radius: 12px; }
 #hesapWin.side { left: auto; width: var(--side-w, 60vw); min-width: min(560px, 100vw); box-shadow: -10px 0 30px -18px rgba(62,53,54,.45); border-radius: 18px 0 0 18px; overflow: hidden; }
@@ -3956,7 +3956,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '25.11.2026 · 2';
+const APP_VERSION = '26.11.2026';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();

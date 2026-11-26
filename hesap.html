@@ -95,7 +95,7 @@ th.tk,td.tk{width:26px;min-width:26px;padding:0!important;text-align:center!impo
 .cmenu .mt{padding:4px 6px 8px;font-size:14px}.cmenu .mrow{display:flex;gap:6px;margin-top:8px}
 
 td.sku{text-align:left!important}.tier{font-size:10px;vertical-align:top;line-height:12px;margin-left:2px;color:var(--mut)}td.ar{width:16px;padding:0 0 0 2px!important;color:var(--mut);cursor:pointer;font-size:12px;text-align:center!important}td.ar:hover{color:var(--ink)}
-tr.addB td.sku,tr.addB td.dsk{box-shadow:inset 0 -2px 0 #b9aea9!important;cursor:copy;transition:none!important}
+tr.addB td.sku,tr.addB td.dsk{box-shadow:inset 0 -2px 0 #9fb79a!important;cursor:copy;transition:none!important;position:relative;z-index:7!important}tr.addB td.sku.frzc,tr.addB td.dsk.frzc{position:sticky}tr.addB td.sku::after,tr.addB td.dsk::after{content:'+';position:absolute;left:6px;bottom:-8px;width:15px;height:15px;line-height:14px;border-radius:50%;background:#9fb79a;color:#fff;font:bold 13px Georgia,serif;text-align:center;z-index:6;pointer-events:none}
 
 /* ortalı */
 table th,table td{text-align:center!important;vertical-align:middle}
@@ -280,6 +280,7 @@ function render(){
  lockInputs();applySort();applyHL();freeze();
  window.scrollTo(0,fy);a.querySelectorAll('.scroll').forEach((x,i)=>{if(scP[i]){x.scrollTop=scP[i][0];x.scrollLeft=scP[i][1]}});
  if(ae){const el=document.querySelector(`[data-set="${CSS.escape(ae)}"]`);el&&el.focus()}
+ if(ui.navPending&&!document.getElementById('askp')){const tp=ui.navPending;ui.navPending=null;const n=document.querySelector(`[data-set="${CSS.escape(tp)}"]`);if(n){ui.edit=tp;n.readOnly=false;if(n.dataset.x)n.value=n.dataset.x;n.dataset.orig=n.value;n.focus();n.select()}}
 }
 const nvx=n=>n==null||n===''?'':typeof n!=='number'?n:n.toLocaleString('tr-TR',{maximumFractionDigits:2});
 const nv=n=>n==null||n===''?'':typeof n!=='number'?n:Math.round(n).toLocaleString('tr-TR');
@@ -593,6 +594,7 @@ function mPrev(){mRead();const m=ui.modal,f=(m.yon==='zam'?1:-1)*m.pct/100,q=m.q
 function snap(){ui.cellPrev=cellSnap()}
 
 /* ---------- set ---------- */
+const isNumF=(path,t)=>t==='num'||t==='pct'||String(path).startsWith('desi|');
 const parseDesi=v=>{const m=/^\s*(\d+(?:[.,]\d+)?)\s*(\+)?\s*$/.exec(String(v??''));return m?{d:+m[1].replace(',','.'),plus:!!m[2]}:null};
 function setPlus(d,p){st.desiPlus=st.desiPlus||{};if(p)st.desiPlus[d]=1;else delete st.desiPlus[d]}
 function setVal(path,raw,t){const P=path.split('|');let v=raw;
@@ -623,6 +625,7 @@ document.addEventListener('change',e=>{const el=e.target;
  if(el.dataset.set){const path=el.dataset.set,raw=el.value,ty=el.dataset.t,old=el.dataset.orig??el.defaultValue;ui.edit=null;el.readOnly=true;
   if(raw===old){render();return}
   if(String(old).trim()===''){setVal(path,raw,ty);save();render();return}   /* boş hücreye ilk yazış sorulmaz */
+  if(!isNumF(path,ty)&&raw.trim()!==''){setVal(path,raw,ty);save();render();return}   /* yazı (kod, ad, barkod) değişince sorulmaz; rakam sorulur */
   askC(el,raw.trim()===''?'Silinsin mi?':'Değiştirilsin mi?',()=>setVal(path,raw,ty));return}
  if(el.dataset.fatset){const[id,k]=el.dataset.fatset.split('|'),x=st.fat.find(z=>z.id===id);if(x)x[k]=el.value;save();render();return}
  if(el.dataset.mt){const k=el.dataset.mt,v=el.value;askC(el,'Değiştirilsin mi?',()=>{st.sites[k].mt=v});return}
@@ -1209,6 +1212,7 @@ document.addEventListener('keydown',e=>{const i=e.target;if(!i.matches?.('table 
  const path=i.dataset.set,raw=i.value,t=i.dataset.t,old=i.dataset.orig??i.defaultValue,tp=tg?.dataset.set;
  if(raw!==old&&raw.trim()===''){i.blur();return}   /* boşaltma: normal soru çıksın */
  i.dataset.nav=1;
+ if(raw!==old&&!i.dataset.draft&&isNumF(path,t)&&String(old).trim()!==''){ui.navPending=tp||null;askC(i,'Değiştirilsin mi?',()=>setVal(path,raw,t));return}   /* rakam değişince yön tuşunda da sorulur */
  if(raw!==old){if(i.dataset.draft){ui.draft=ui.draft||{};ui.draft[path]={raw,t}}else{setVal(path,raw,t);save()}}
  ui.edit=tp||null;render();
  if(tp){const n=document.querySelector(`[data-set="${CSS.escape(tp)}"]`);if(n){n.readOnly=false;if(n.dataset.x)n.value=n.dataset.x;n.dataset.orig=n.value;n.focus();n.select();n.scrollIntoView({block:'nearest',inline:'nearest'})}}},true);
