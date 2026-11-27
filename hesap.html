@@ -522,8 +522,8 @@ function insertKey(obj,key,val,ref,after){const o={};for(const[k,v]of Object.ent
 // sütun düzeni: [id, grup, başlık, opt(gizlenebilir anahtar)]
 function spec(vw){return[['ar','',''],['sku','','Ürün Kodu'],['desi','','Desi','desi'],
  ['p','S','Fiyat'],['mal','S','Maliyet','mal'],['kargo','S','Kargo','kargo'],['kom','S','Kom','kom'],['rek','S','Reklam','rek'],['kdv','S','Kdv','kdv'],['stp','S','Stopaj','stp'],['gider','S','Gider','gider'],['kar','S','Kâr','skar'],['or','S','Oran'],['oneri','S','Öneri','oneri'],['tk','S','','oneri'],
- ['tp','T','Fiyat'],['tmal','T','Maliyet'],['tkg','T','Kargo'],['tkom','T','Kom'],['trek','T','Reklam','tgid'],['tkdv','T','Kdv','tgid'],['tstp','T','Stopaj','tgid'],['tkar','T','Kâr','kar'],['tor','T','Oran'],['gap','G',''],
- ['hp','H','Fiyat'],['hmal','H','Maliyet'],['hkom','H','Kom'],['hkg','H','Kargo','hgid'],['hrek','H','Reklam','hgid'],['hkdv','H','Kdv','hgid'],['hstp','H','Stopaj','hgid'],['hkar','H','Kâr','kar'],['hor','H','Oran']]}
+ ['hp','H','Fiyat'],['hmal','H','Maliyet'],['hkom','H','Kom'],['hkg','H','Kargo','hgid'],['hrek','H','Reklam','hgid'],['hkdv','H','Kdv','hgid'],['hstp','H','Stopaj','hgid'],['hkar','H','Kâr','kar'],['hor','H','Oran'],['gap','G',''],
+ ['tp','T','Fiyat'],['tmal','T','Maliyet'],['tkg','T','Kargo'],['tkom','T','Kom'],['trek','T','Reklam','tgid'],['tkdv','T','Kdv','tgid'],['tstp','T','Stopaj','tgid'],['tkar','T','Kâr','kar'],['tor','T','Oran']]}
 function layout(sp){const out=[];for(const c of sp){if(c[3]&&!on(c[3])){const last=out.at(-1);if(last&&last.hid&&last.g===c[1]){if(!last.keys.includes(c[3]))last.keys.push(c[3])}else out.push({hid:1,g:c[1],keys:[c[3]]})}else out.push({id:c[0],g:c[1],t:c[2],opt:c[3]})}return out}
 const GC={S:'gS',T:'gT',H:'gH',G:'gap','':''};
 function vHesap(){
@@ -549,7 +549,7 @@ function vHesap(){
    kom:`<td class="gS">${inp(`sites|${k}|rows|${sku}|1`,kom,{t:'pct',c:'s'})}</td>`,rek:`<td class="gS">${inp(`sites|${k}|rows|${sku}|2`,rkOf(k,sku),{t:'pct',c:'s'})}</td>`,
    kdv:`<td class="gS">${f0(c.kd)}</td>`,stp:`<td class="gS">${s.stopaj?f0(c.sp):'—'}</td>`,loj:`<td class="gS">${f0(c.lj)}</td>`,
    tmal:`<td class="gT">${f0(tc.m)}</td>`,trek:`<td class="gT">${f0(tc.rk)}</td>`,tkdv:`<td class="gT">${f0(tc.kd)}</td>`,tstp:`<td class="gT">${s.stopaj?f0(tc.sp):'—'}</td>`,
-   hmal:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.m):''}</td>`,hkg:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.kg):''}</td>`,hrek:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.rk):''}</td>`,hkdv:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.kd):''}</td>`,hstp:`<td class="gH" ${dh}>${showH&&hv[0]!=null?(s.stopaj?f0(hc.sp):'—'):''}</td>`,
+   hmal:`<td class="gH" ${dh}>${f0(hc.m)}</td>`,hkg:`<td class="gH" ${dh}>${f0(hc.kg)}</td>`,hrek:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.rk):''}</td>`,hkdv:`<td class="gH" ${dh}>${showH&&hv[0]!=null?f0(hc.kd):''}</td>`,hstp:`<td class="gH" ${dh}>${showH&&hv[0]!=null?(s.stopaj?f0(hc.sp):'—'):''}</td>`,
    gider:`<td class="gS">${f0(c.g)}</td>`,kar:`<td class="gS">${f0(c.kar)}</td>`,or:`<td class="gS or ${c.or<0?'neg':''}">${+p?pc(c.or):''}</td>`,
    oneri:`<td class="gS pay ${isLow?'neg':''} ${po?'ovr':''}" data-pay="${esc(k+'|'+sku)}">${ed?`<input class="box" id="payIn" value="${Math.round(payOf(k,sku)*100)}">`:f0(o)}</td>`,
    tk:`<td class="gS tk">${isLow?`<span class="ok" data-apply="${esc(sku)}">✓</span>`:''}</td>`,
@@ -579,7 +579,7 @@ function vHesap(){
  const head=L.map(c=>c.hid?`<th class="hcol ${GC[c.g]}" data-cols="${c.keys.join(' ')}" title="${c.keys.map(colName).join(', ')}"></th>`:`<th class="${GC[c.g]} ${c.id==='tk'?'tk':''} ${c.id==='sku'?'l':''}" ${c.opt&&c.id!=='tk'?`data-colh="${c.opt}"`:''}>${c.id==='tk'&&low?`<span class="okall" data-act="applyall" title="Tümünü uygula (${low})">✓</span>`:c.t}${CLR[c.id]?`<span class="x clr" data-clr="${c.id}" data-tip="Sütunu temizle">${IC.erase}</span>`:''}</th>`).join('');
  const MU=malUyari(k);const uy=false?`<div class="maluy">${MU.fark.length?`<div><b>Maliyet farkı</b> ${MU.fark.map(([a,x,y])=>`<span>${esc(a)} <s>${f0(x)}</s> → ${f0(y)}</span>`).join('')}</div>`:''}</div>`:'';
  return `<div class="card">${chips}${bar}${uy}<div class="scroll"><table class="h3">
- <tr class="grp"><th colspan="${span('')}"></th><th colspan="${span('S')}" class="gS">Sabit Fiyat</th><th colspan="${span('T')}" class="gT">${vw?'Toplu Alım':'Toplu İndirim'}</th><th class="gap"></th><th colspan="${span('H')}" class="gH">Haftalık İndirim </th></tr>
+ <tr class="grp"><th colspan="${span('')}"></th><th colspan="${span('S')}" class="gS">Sabit Fiyat</th><th colspan="${span('H')}" class="gH">Haftalık İndirim</th><th class="gap"></th><th colspan="${span('T')}" class="gT">${vw?'Toplu Alım':'Toplu İndirim'}</th></tr>
  <tr>${head}</tr>${body}</table></div></div>${ui.menu?vMenu():''}`}
 function vMenu(){const m=ui.menu;let h;
  if(m.mode==='add')h=`<input class="box" id="mAdd" list="skuList" style="width:160px;text-align:left" placeholder="Ürün kodu"><datalist id="skuList">${Object.keys(st.prod).filter(x=>!tbl().rows[x]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist><div class="mrow"><button class="btn" data-m="addok">Ekle</button><button class="btn" data-m="close">Vazgeç</button></div>`;

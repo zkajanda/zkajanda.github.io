@@ -3962,7 +3962,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '27.11.2026·2';
+const APP_VERSION = '27.11.2026·3';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4252,6 +4252,28 @@ async function restoreHesapBackup(file) {
 /* Hesap maliyet dosyası: maliyet listelerini temizler, dosyadaki tek listeyi koyar. Ürünler, siteler, kargo, satışlar değişmez. */
 function importHesapMaliyet(pack) {
   if (!pack.mal || typeof pack.mal !== 'object') { toast('Bu dosyada maliyet listesi yok.'); return; }
+  if (pack.mode === 'fill') {   // tamamlama: yalnızca boş hücreleri doldurur, olmayan kodu en alta ekler; hiçbir şeyi silmez
+    const n = Object.keys(pack.mal).length;
+    confirmBox({
+      text: `Şu an en yeni maliyet listesindeki <b>boş hücreler</b>${pack.hafta || pack.haftaCopy ? ' ve boş <b>haftalık indirim</b> fiyatları' : ''} doldurulsun mu?<br><br>${pack.haftaCopy ? 'Trendyol\'da TY KMSYN fiyatları, diğer ürünlerde sabit fiyat ve komisyon yazılır. ' : ''}Dolu hücrelere, sıralamaya ve diğer bilgilere dokunulmaz.`,
+      buttons: [{ label: 'Vazgeç' }, { label: 'Doldur', fn: () => {
+        closeHesap();
+        let st = {}; try { st = JSON.parse(localStorage.getItem(HESAP_LS) || '{}') || {}; } catch (_) { st = {}; }
+        st.mal = st.mal || {}; let f = 0, a = 0;
+        for (const [c, v] of Object.entries(pack.mal)) {
+          if (!st.mal[c]) { st.mal[c] = v.slice(); a++; continue; }
+          const row = st.mal[c]; for (let i = 0; i < v.length; i++) if ((row[i] == null || row[i] === '') && v[i] != null) { row[i] = v[i]; f++; }
+        }
+        let hw = 0;
+        for (const [k, rows] of Object.entries(pack.hafta || {})) { const site = st.sites && st.sites[k]; if (!site) continue; site.hafta = site.hafta || {};
+          for (const [sku, v] of Object.entries(rows)) if (site.rows && site.rows[sku] && !(site.hafta[sku] && site.hafta[sku][0] != null)) { site.hafta[sku] = v.slice(); hw++; } }
+        if (pack.haftaCopy) for (const site of Object.values(st.sites || {})) { site.hafta = site.hafta || {};   // haftalığı boş kalan her ürüne sabit fiyat ve komisyonu yaz
+          for (const [sku, r] of Object.entries(site.rows || {})) if (r && r[0] != null && r[0] !== '' && +r[0] > 0 && !(site.hafta[sku] && site.hafta[sku][0] != null)) { site.hafta[sku] = [r[0], r[1]]; hw++; } }
+        try { localStorage.setItem(HESAP_LS, JSON.stringify(st)); toast(`Tamamlandı · ${f} maliyet hücresi${a ? ' · ' + a + ' yeni kod' : ''}${hw ? ' · ' + hw + ' haftalık fiyat' : ''}`); } catch (_) { toast('Kaydedilemedi.'); }
+      } }]
+    });
+    return;
+  }
   const n = Object.keys(pack.mal).length, ad = String(pack.ad || 'Maliyet'), from = /^\d{4}-\d{2}-\d{2}$/.test(pack.from || '') ? pack.from : '';
   confirmBox({
     text: `Hesap'taki <b>bütün maliyet listeleri silinip</b> yerine <b>${esc(ad)}</b>${from ? ` (${esc(fmtDot(from))}'den geçerli)` : ''} konsun mu?<br><br>${n} ürün kodu. Ürünler, siteler, kargo ve satışlar değişmez.`,
