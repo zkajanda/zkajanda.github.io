@@ -2589,6 +2589,7 @@ function showPinned() {
       if (pinnedAlarms.length) showPinned(); else $('#statusLine').classList.remove('show');
     } }
   ], false, 'alarm', true);
+  statusGo(() => { const k = Object.keys(S.days).find(dk => (S.days[dk].lines || []).includes(l)); if (k) goLine(k, l); }, true);
 }
 function gateAlarmNote() {
   const card = $('#gate .gate-card'); if (!card || !lockedAlarms.length) return;
@@ -2767,21 +2768,26 @@ function checkDueTasks() {
     list.forEach(([t, l], i) => setTimeout(() => {
       if (!unlocked || l.done) return;
       status(`Bitiş günü · ${esc(l.text)}`, [{ icon: 'check', label: 'Bitti', fn: () => { markLineDone(tk, l); } }], false, 'task');
+      statusGo(() => goLine(tk, l));
       if (i === 0) ting();
     }, i * 5400));
   });
 }
+/* bildirim yazısına tıklayınca ilgili güne gider, satır parlar (keep: bildirim kapanmaz — alarm) */
+function statusGo(fn, keep = false) { const el = $('#statusLine'), sp = el && $('span', el); if (!sp) return; sp.style.cursor = 'pointer'; sp.title = 'O güne git'; sp.onclick = () => { if (!keep) el.classList.remove('show'); fn(); }; }
+function goLine(k, l) { if (UI.view === 'timeline') UI.view = 'daily'; goDay(k, l.id); }
 function showLeftovers(list, ring) {
   const show = list.slice(0, 3), more = list.length - show.length;
   const step = i => {
     if (!unlocked) return;
-    if (i >= show.length) { if (more > 0) status(`ve ${more} iş daha`, null, false, 'left'); return; }
+    if (i >= show.length) { if (more > 0) { const [nk, nl] = list[show.length]; status(`ve ${more} iş daha`, null, false, 'left'); statusGo(() => goLine(nk, nl)); } return; }
     const [k, l] = show[i];
     if (l.done || (l.movedTo && movedAlive(l))) return step(i + 1);
     status(`Tamamlanmadı · ${fmtDot(k).slice(0, 5)} · ${esc(l.text)}`, [
       { icon: 'check', label: 'Bitti', fn: () => { markLineDone(k, l); setTimeout(() => step(i + 1), 1800); } },
       { icon: 'arrow', label: 'Bugüne aktar', fn: () => { moveLineTo(k, l, UI.today); save(); renderMain(); status('Bugüne aktarıldı.'); setTimeout(() => step(i + 1), 1800); } }
     ], false, 'left');
+    statusGo(() => goLine(k, l));
     if (ring) { ting(); ring = false; }   // ilk gösterilen hatırlatmada (ilki atlansa da) bir kez çalar
     const my = statusSeq; setTimeout(() => { if (statusSeq === my) step(i + 1); }, 5400);
   };
@@ -3956,7 +3962,7 @@ WINDOWS.muzik = {
   }
 };
 /* ===== Giriş, şifre, PIN ve kilit ===== */
-const APP_VERSION = '26.11.2026';
+const APP_VERSION = '27.11.2026·2';
 let AUTH = null;           // {user, salt, passHash, pinHash, recHash}
 let unlocked = false;
 let lastActivity = Date.now();
@@ -4148,6 +4154,8 @@ document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); lockApp(); }
 });
 ['mousemove', 'keydown', 'mousedown', 'touchstart', 'wheel'].forEach(ev => document.addEventListener(ev, () => { lastActivity = Date.now(); }, { passive: true }));
+/* Hesap penceresinde çalışırken de hareket sayılır (Hesap kendi içinden haber verir) */
+window.addEventListener('message', e => { const f = document.querySelector('#hesapWin iframe'); if (f && e.source === f.contentWindow && e.data && e.data.zk === 'act') lastActivity = Date.now(); });
 
 /* ===== Sandık: yedek al / yedekten yükle ===== */
 function blobToDataURL(b) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); }); }
@@ -4241,6 +4249,22 @@ async function restoreHesapBackup(file) {
     buttons: [{ label: 'Vazgeç' }, { label: 'Yedeği yükle', danger: true, fn: async () => { closeHesap(); await hesapRestore(pack.hesap); toast('Hesap yedeği yüklendi.'); } }]
   });
 }
+/* Hesap maliyet dosyası: maliyet listelerini temizler, dosyadaki tek listeyi koyar. Ürünler, siteler, kargo, satışlar değişmez. */
+function importHesapMaliyet(pack) {
+  if (!pack.mal || typeof pack.mal !== 'object') { toast('Bu dosyada maliyet listesi yok.'); return; }
+  const n = Object.keys(pack.mal).length, ad = String(pack.ad || 'Maliyet'), from = /^\d{4}-\d{2}-\d{2}$/.test(pack.from || '') ? pack.from : '';
+  confirmBox({
+    text: `Hesap'taki <b>bütün maliyet listeleri silinip</b> yerine <b>${esc(ad)}</b>${from ? ` (${esc(fmtDot(from))}'den geçerli)` : ''} konsun mu?<br><br>${n} ürün kodu. Ürünler, siteler, kargo ve satışlar değişmez.`,
+    buttons: [{ label: 'Vazgeç' }, { label: 'Maliyeti yükle', danger: true, fn: () => {
+      closeHesap();
+      let st = {}; try { st = JSON.parse(localStorage.getItem(HESAP_LS) || '{}') || {}; } catch (_) { st = {}; }
+      st.mal = pack.mal; st.malAd = ad; st.malFrom = from; st.malHist = []; st.malOpen = {}; st.malId = Math.random().toString(36).slice(2, 9); st.mal9 = true;
+      delete st.malPinCur;
+      if (st.hl) for (const k of Object.keys(st.hl)) if (/^(ml|mal|mh)\|/.test(k)) delete st.hl[k];
+      try { localStorage.setItem(HESAP_LS, JSON.stringify(st)); toast(`Maliyet yüklendi · ${ad}`); } catch (_) { toast('Maliyet yüklenemedi.'); }
+    } }]
+  });
+}
 async function makeBackup() {
   let lock = null;
   if (CAN_LOCK) {
@@ -4263,6 +4287,7 @@ async function restoreBackup(file) {
   let pack;
   try { pack = JSON.parse(await file.text()); } catch { toast('Bu dosya bir ajanda yedeği değil.'); return; }
   if (pack && pack.app === 'zk-hesap') return restoreHesapBackup(file);   // eski ayrı Hesap yedeği
+  if (pack && pack.app === 'zk-hesap-maliyet') return importHesapMaliyet(pack);   // sadece maliyet listesi (diğer Hesap bilgileri değişmez)
   let lockKey = null;
   if (pack && pack.app === 'zk-ajanda' && pack.locked) {
     if (!CAN_LOCK) { toast('Bu tarayıcı kilitli yedeği açamıyor.'); return; }
